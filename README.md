@@ -1,2 +1,3 @@
-<a href="tmp_voiceline.mp3"><img src="tmp_darkseer_icon.png" align="left" alt="<Image: Temporary Dark Seer icon>" width="100" /></a>
-### &nbsp;&nbsp;&nbsp;&nbsp;If your enemy is equal, prepare for him.<br><br>&nbsp;&nbsp;&nbsp;&nbsp;If greater, elude him.<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If weaker, <font color="red">crush him.</font>
+![][1] _If your enemy is equal, prepare for him. If greater, elude him. If weaker, **crush him**._
+
+[1]: /tmp_darkseer_icon.png
