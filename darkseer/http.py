@@ -6,8 +6,20 @@ import httpx
 
 class AsyncRateLimiter:
     """
+    Implementation of the token bucket algorithm.
+    
+    Attributes
+    ----------
+    tokens : int
+        number of allowable requests within a period
+
+    seconds : int
+        amount of time between period resets
+
+    burst : int, default <tokens>
+        number of consecutive requests before limiting happens
     """
-    def __init__(self, tokens, seconds, *, burst=None):
+    def __init__(self, tokens: int, seconds: int, *, burst: int=None):
         self._max_tokens = tokens
         self._seconds = seconds
         self._burst = burst if burst is not None else tokens
@@ -16,7 +28,7 @@ class AsyncRateLimiter:
         self.tokens = self._burst
 
     @property
-    def rate(self):
+    def rate(self) -> float:
         return self._max_tokens / self._seconds
 
     def _flow(self):
@@ -101,14 +113,24 @@ class AsyncRateLimiter:
 
 
 class AsyncThrottledClient:
+    """
+    An HTTP client with a built-in rate limiter.
+    
+    Attributes
+    ----------
+    name : str
+        arbitrary name of the HTTP client
 
+    rate_limiter : AsyncRateLimiter, default AsyncRateLimiter(tokens=1, seconds=1)
+        limiter to throttle requests with
+    """
     def __init__(self, name: str, rate_limiter: AsyncRateLimiter=None):
         self.name = name
         self.rate_limiter = rate_limiter
         self._client = httpx.AsyncClient()
 
     @property
-    def rate_limiter(self):
+    def rate_limiter(self) -> AsyncRateLimiter:
         return self._rate_limiter
 
     @rate_limiter.setter
