@@ -7,7 +7,7 @@ import httpx
 class AsyncRateLimiter:
     """
     Implementation of the token bucket algorithm.
-    
+
     Attributes
     ----------
     tokens : int
@@ -115,7 +115,7 @@ class AsyncRateLimiter:
 class AsyncThrottledClient:
     """
     An HTTP client with a built-in rate limiter.
-    
+
     Attributes
     ----------
     name : str
