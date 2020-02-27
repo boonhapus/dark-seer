@@ -4,11 +4,11 @@ from pydantic import BaseModel
 
 
 class GameVersion(BaseModel):
-    id: int
+    patch_id: int
     patch: str
     release_date: date
 
 
 class Hero(BaseModel):
-    id: int
-    # TODO ...
+    hero_id: int
+    ...
