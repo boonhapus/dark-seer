@@ -75,16 +75,17 @@ class AsyncRateLimiter:
 
         If no tokens are available, block until one becomes available.
         """
+        loop = asyncio.get_running_loop()
         this_task = asyncio.current_task()
 
         while not self.has_capacity():
-            fut = asyncio.get_running_loop().create_future()
-            self._in_queue[this_task] = fut
+            self._in_queue[this_task] = fut = loop.create_future()
             try:
                 await asyncio.wait_for(fut, timeout=1 / self.rate)
             except asyncio.TimeoutError:
                 pass
-            fut.cancel()
+            finally:
+                fut.cancel()
         else:
             self._in_queue.pop(this_task, None)
 

@@ -7,7 +7,9 @@ from .schema import GameVersion
 
 
 class StratzClient(AsyncThrottledClient):
-
+    """
+    TODO
+    """
     def __init__(self):
         limiter = AsyncRateLimiter(tokens=5000, seconds=3600, burst=1)
         super().__init__(name='stratz', rate_limiter=limiter)
@@ -30,6 +32,7 @@ class StratzClient(AsyncThrottledClient):
         }
         """
         r = await self.post(f'{self.base_url}/GraphQL', data={'query': q})
+        r.raise_for_status()
         return [GameVersion(**gv) for gv in r.json()['data']['game_version']]
 
     async def heroes(self) -> List[Hero]:
