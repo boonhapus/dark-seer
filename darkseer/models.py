@@ -2,7 +2,6 @@ from sqlalchemy import (
     Column, ForeignKey,
     Date, Integer, String
 )
-import sqlalchemy as sa
 
 from darkseer.database import Base
 

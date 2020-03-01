@@ -12,3 +12,7 @@ class GameVersion(BaseModel):
 class Hero(BaseModel):
     hero_id: int
     ...
+
+
+class Item(BaseModel):
+    ...
