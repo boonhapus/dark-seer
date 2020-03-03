@@ -2,7 +2,7 @@ from typing import List
 
 import httpx
 
-from darkseer.schema import Hero, Item
+from darkseer.schema import Hero, Item, Tournament
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
 
 from .schema import GameVersion
@@ -115,3 +115,21 @@ class StratzClient(AsyncThrottledClient):
         }
         """
         raise NotImplementedError('TODO')
+    
+    async def tournaments(self) -> List[Tournament]:
+        """
+        """
+        query = """
+        {
+          tournaments: leagues(tiers: [3, 4, 5]) {
+            league_id: id
+            league_name: displayName
+            cdn_img_url: imageUri
+            league_start_date: startDateTime
+            league_end_date: endDateTime
+          }
+        }
+        """
+        r = await self._graph_ql_query(query)
+        r.raise_for_status()
+        return [Tournament(**d) for d in r.json()['data']['tournaments']]

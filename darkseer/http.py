@@ -181,5 +181,5 @@ class AsyncThrottledClient:
         """
         return await self._request('POST', *args, **kwargs)
 
-    def __repr__(self):
+    def __str__(self):
         return f'<HTTP client for {self.name}>'

@@ -31,6 +31,16 @@ class Hero(Base):
     __tablename__ = 'hero'
     hero_id = Column(Integer, primary_key=True, autoincrement=False)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    hero_display_name = Column(String)
+    hero_internal_name = Column(String)
+    hero_uri = Column(String)
+    is_available_captains_mode = Column(Boolean)
+    base_agi = Column(Float)
+    gain_agi = Column(Float)
+    base_str = Column(Float)
+    gain_str = Column(Float)
+    base_int = Column(Float)
+    gain_int = Column(Float)
     ...
 
 
@@ -52,10 +62,21 @@ class Item(Base):
 
 class Tournament(Base):
     __tablename__ = 'tournament'
+    league_id = Column(Integer, primary_key=True)
+    league_name = Column(String)
+    cdn_img_url = Column(String)
+    league_start_date = Column(Date, comment='held as naive, but UTC')
+    league_end_date = Column(Date, comment='held as naive, but UTC')
+    
+    # TODO: matches = relationship()
 
 
 class Match(Base):
     __tablename__ = 'match'
+    
+    # TODO: draft = relationship()
+    # TODO: players = relationship()
+    # TODO: events = relationship()
 
 
 class MatchDraft(Base):

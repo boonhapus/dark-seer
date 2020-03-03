@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 
 class GameVersion(BaseModel):
@@ -16,3 +16,11 @@ class Hero(BaseModel):
 
 class Item(BaseModel):
     ...
+
+
+class Tournament(BaseModel):
+    league_id: int
+    league_name: str
+    cdn_img_url: HttpUrl
+    league_start_date: date
+    league_end_date: date
