@@ -1,11 +1,9 @@
 from typing import List
 
-from httpx import HTTPError
-
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
 
 
-class SQLQueryError(HTTPError):
+class SQLQueryError(Exception):
     """
     Raised when an error occurs when compiling the SQL query.
 
@@ -22,7 +20,8 @@ class SQLQueryError(HTTPError):
     """
     def __init__(self, *args, query, response):
         self.query = query
-        super().__init__(*args, response=response)
+        self.response = response
+        super().__init__(*args)
 
 
 class OpenDotaClient(AsyncThrottledClient):
@@ -32,7 +31,7 @@ class OpenDotaClient(AsyncThrottledClient):
     Documentation:
         https://docs.opendota.com/
 
-    Rate limit is 50,000 per month @ 60 requests per minute.
+    Rate limit is 50,000/month @ 60 requests per minute.
     """
     def __init__(self):
         limiter = AsyncRateLimiter(tokens=60, seconds=60, burst=1)

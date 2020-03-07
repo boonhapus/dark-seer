@@ -1,7 +1,10 @@
+import collections
 import asyncio
 import time
 
 import httpx
+
+from darkseer import __version__
 
 
 class AsyncRateLimiter:
@@ -125,10 +128,20 @@ class AsyncThrottledClient:
     rate_limiter : AsyncRateLimiter, default AsyncRateLimiter(tokens=1, seconds=1)
         limiter to throttle requests with
     """
-    def __init__(self, name: str, rate_limiter: AsyncRateLimiter=None):
+    def __init__(self, name: str, rate_limiter: AsyncRateLimiter=None, **opts):
+        _default_opts = {
+            'headers': {
+                'user-agent': f'DarkSeerBot/{__version__} (+github: dark-seer)'
+            }
+        }
+
+        d = collections.defaultdict(dict)
+        d.update(_default_opts)
+        [d[k].update(nested) for k, nested in opts.items()]
+
         self.name = name
         self.rate_limiter = rate_limiter
-        self._client = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(**dict(d))
 
     @property
     def rate_limiter(self) -> AsyncRateLimiter:
@@ -161,6 +174,7 @@ class AsyncThrottledClient:
         TODO: clean up kwargs
         """
         async with self.rate_limiter:
+            # TODO: try/except here to handle HOURLY/MONTHLY rate limits?
             r = await self._client.request(*args, **kwargs)
 
         return r

@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, ForeignKey,
-    Date, Integer, String
+    Date, Integer, Float, Boolean String
 )
 
 from darkseer.database import Base
@@ -64,16 +64,15 @@ class Tournament(Base):
     __tablename__ = 'tournament'
     league_id = Column(Integer, primary_key=True)
     league_name = Column(String)
-    cdn_img_url = Column(String)
     league_start_date = Column(Date, comment='held as naive, but UTC')
     league_end_date = Column(Date, comment='held as naive, but UTC')
-    
+
     # TODO: matches = relationship()
 
 
 class Match(Base):
     __tablename__ = 'match'
-    
+
     # TODO: draft = relationship()
     # TODO: players = relationship()
     # TODO: events = relationship()
