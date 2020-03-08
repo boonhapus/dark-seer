@@ -6,9 +6,13 @@ from pydantic import BaseModel, validator
 
 class EnumeratedModel(BaseModel):
     """
-    TODO
+    A BaseModel to handle consistent enumerated fields.
+
+    Certain fields are enumerated to conserve data volumes. This is
+    useful across millions of matches, but it's unlikely DarkSeer will
+    ever be tasked to handle this.
     """
-    @validator('region', pre=True)
+    @validator('region', pre=True, check_fields=False)
     def _region_id_to_name(cls, v: int) -> str:
         REGIONS = {
             0: 'UNDEFINED', 1: 'US West', 2: 'US East', 3: 'Europe West',
@@ -19,7 +23,7 @@ class EnumeratedModel(BaseModel):
         }
         return REGIONS[v]
 
-    @validator('lobby_type', pre=True)
+    @validator('lobby_type', pre=True, check_fields=False)
     def _lobby_id_to_name(cls, v: int) -> str:
         LOBBY_TYPES = {
             0: 'Normal', 1: 'Practice', 2: 'Tournament', 3: 'Tutorial',
@@ -28,7 +32,7 @@ class EnumeratedModel(BaseModel):
         }
         return LOBBY_TYPES[v]
 
-    @validator('game_mode', pre=True)
+    @validator('game_mode', pre=True, check_fields=False)
     def _game_mode_to_name(cls, v: int) -> str:
         GAME_MODES = {
             0: 'Unknown', 1: 'All Pick', 2: 'Captains Mode', 3: 'Random Draft',

@@ -178,7 +178,7 @@ class StratzClient(AsyncThrottledClient):
         # TODO: remove all below in favor of a GraphQL-only query. right now,
         #       we're making N api calls where..
         #
-        #           N = len(tournaments.matches) + 1
+        #           N = (len(tournaments.matches) / 250) + 1
         #
         #       ..when this really could be N = 2. One pass to /graphql for all
         #       the tournaments, and then another to grab all the matches for
@@ -192,16 +192,47 @@ class StratzClient(AsyncThrottledClient):
         league_info = r.json()['data']['tournaments']
 
         coros = [
-            self.get(f'{self.base_url}/api/v1/league/{d["league_id"]}/matches')
-            for d in league_info
+            self._tournament_matches(data['league_id'], take=250)
+            for data in league_info
         ]
 
         data = [
-            {**league, 'match_ids': [m['id'] for m in r.json()]}
-            for r, league in zip(await asyncio.gather(*coros), league_info)
+            {**league, 'match_ids': matches}
+            for league, matches in zip(league_info, await asyncio.gather(*coros))
         ]
 
         return [Tournament.parse_obj(d) for d in data]
+
+    async def _tournament_matches(self, league_id: int, **params) -> List[int]:
+        """
+        Return all matches for a given League.
+
+        This is a recursive helper method, which folds through the
+        paginated STRATZ api. For the {league_id}/matches endpoint,
+        match data is returned in pages of 250 per GET.
+
+        Parameters
+        ----------
+        league_id : int
+            id of the tournament/league to retrieve matches for
+
+        **params
+            query parameters to supply to the STRATZ endpoint
+
+        Returns
+        -------
+        match_ids : List[int]
+        """
+        url = f'{self.base_url}/api/v1/league/{league_id}/matches'
+        r = await self.get(url, params=params)
+        data = r.json()
+
+        if len(data) == 250:
+            p = {**params, 'skip': params.get('skip', 0) + 250}
+            more_data = await self._tournament_matches(league_id, **p)
+            return [m['id'] for m in [*data, *more_data]]
+
+        return data
 
     async def match(self, match_id: int) -> Match:
         """
