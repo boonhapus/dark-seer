@@ -3,10 +3,10 @@ import asyncio
 
 import httpx
 
-from darkseer.schema import Hero, Item
+from darkseer.schema import Hero, Item, Match, Tournament
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
 
-from .schema import GameVersion, LeagueSummary
+from .schema import GameVersion
 
 
 class StratzClient(AsyncThrottledClient):
@@ -133,7 +133,7 @@ class StratzClient(AsyncThrottledClient):
         """
         raise NotImplementedError('TODO: need to finalize schema.Item')
 
-    async def tournaments(self, tiers: Union[List, int]=None) -> List[LeagueSummary]:
+    async def tournaments(self, tiers: Union[List, int]=None) -> List[Tournament]:
         """
         Returns the list of tracked Leagues.
 
@@ -168,6 +168,7 @@ class StratzClient(AsyncThrottledClient):
             league_name: displayName
             league_start_date: startDateTime
             league_end_date: endDateTime
+            prize_pool: prizePool
           }
         }
         """
@@ -195,31 +196,29 @@ class StratzClient(AsyncThrottledClient):
             for d in league_info
         ]
 
-        match_info = [
-            {
-                'match_id': match['id'],
-                'league_id': match['leagueId'],
-                'start_datetime': match['startDateTime'],
-                'parsed_datetime': match.get('parsedDateTime', None),
-                'duration': match['durationSeconds'],
-                'lobby_type': match['lobbyType'],
-                'game_mode': match['gameMode'],
-                'radiant_team_id': match['radiantTeamId'],
-                'dire_team_id': match['direTeamId'],
-                'is_radiant_win': match['didRadiantWin']
-            }
-            for r in await asyncio.gather(*coros)
-            for match in r.json()
-        ]
-
         data = [
-            {
-                **league,
-                'match_summaries': [
-                    m for m in match_info if m['league_id'] == league['league_id']
-                ]
-            }
-            for league in league_info
+            {**league, 'match_ids': [m['id'] for m in r.json()]}
+            for r, league in zip(await asyncio.gather(*coros), league_info)
         ]
 
-        return [LeagueSummary.parse_obj(d) for d in data]
+        return [Tournament.parse_obj(d) for d in data]
+
+    async def match(self, match_id: int) -> Match:
+        """
+        """
+        query = """{
+          matches(ids: [5212485721]) {
+            match_id: id
+            patch_id: gameVersionId
+            league_id: leagueId
+            series_id: seriesId
+            start_datetime: startDateTime
+            duration: durationSeconds
+            region: regionId
+            lobby_type: lobbyType
+            game_mode: gameMode
+            average_rank: averageRank
+            is_radiant_win: didRadiantWin
+          }
+        }"""
+        raise NotImplementedError('TODO: need to finalize schema.Item')

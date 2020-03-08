@@ -1,9 +1,9 @@
-from datetime import datetime, date
-from typing import List, Optional
+from datetime import datetime
+from typing import Optional
 
-from pydantic import BaseModel, validator
+from pydantic import validator
 
-from darkseer.schema import GameVersion
+from darkseer.schema import EnumeratedModel, GameVersion
 
 
 class GameVersion(GameVersion):
@@ -18,28 +18,18 @@ class GameVersion(GameVersion):
         return datetime.utcfromtimestamp(v)
 
 
-class MatchSummary(BaseModel):
-    """
-    Basic information about a Match.
-    """
-    match_id: int
-    league_id: int
-    start_datetime: datetime
-    parsed_datetime: Optional[datetime]
-    duration: int
-    lobby_type: int  # TODO: enum/validator
-    game_mode: int  # TODO: enum/validator
-    radiant_team_id: int  # TODO: enum/validator
-    dire_team_id: int  # TODO: enum/validator
-    is_radiant_win: bool
-
-
-class LeagueSummary(BaseModel):
-    """
-    Basic information about a League.
-    """
-    league_id: int
-    league_name: str
-    league_start_date: date
-    league_end_date: date
-    match_summaries: List[MatchSummary]
+# class MatchSummary(EnumeratedModel):
+#     """
+#     Basic information about a Match.
+#     """
+#     match_id: int
+#     league_id: int
+#     start_datetime: datetime
+#     parsed_datetime: Optional[datetime]
+#     duration: int
+#     region: str
+#     lobby_type: str
+#     game_mode: str
+#     radiant_team_id: int
+#     dire_team_id: int
+#     is_radiant_win: bool

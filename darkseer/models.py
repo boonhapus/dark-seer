@@ -66,12 +66,25 @@ class Tournament(Base):
     league_name = Column(String)
     league_start_date = Column(Date, comment='held as naive, but UTC')
     league_end_date = Column(Date, comment='held as naive, but UTC')
+    prize_pool = Column(Integer)
 
     # TODO: matches = relationship()
 
 
 class Match(Base):
     __tablename__ = 'match'
+
+    match_id = Column(Integer, primary_key=True)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'))
+    league_id = Column(Integer, ForeignKey('tournament.league_id'))
+    series_id = Column(Integer)  # we can make a VIEW for Tournament games
+    region = Column(String)  # id --> name handled in schema.Match
+    lobby_type = Column(String)  # id --> name handled in schema.Match
+    game_mode = Column(String)  # id --> name handled in schema.Match
+    start_datetime = Column(DateTime, comment='held as naive, but UTC')
+    duration = Column(Integer, comment='held as seconds')
+    average_rank = Column(Integer)
+    is_radiant_win = Column(Boolean)
 
     # TODO: draft = relationship()
     # TODO: players = relationship()
@@ -84,6 +97,17 @@ class MatchDraft(Base):
 
 class MatchPlayer(Base):
     __tablename__ = 'match_player'
+
+
+class PlayerMovement(Base):
+    __tablename__ = 'player_movement'
+
+    id = Column(Integer, primary_key=True)
+    match_id = Column(Integer, ForeignKey('match.match_id'))
+    player_id = Column(Integer, ForeignKey('match_player.player_id'))
+    time = Column(Integer)
+    x = Column(Integer)
+    y = Column(Integer)
 
 
 class MatchEvent(Base):
