@@ -1,6 +1,6 @@
 from sqlalchemy import (
-    Column, ForeignKey,
-    Date, Integer, Float, Boolean String
+    Column, ForeignKey, relationship,
+    Date, DateTime, Integer, Float, Boolean, String
 )
 
 from darkseer.database import Base
@@ -68,7 +68,7 @@ class Tournament(Base):
     league_end_date = Column(Date, comment='held as naive, but UTC')
     prize_pool = Column(Integer)
 
-    # TODO: matches = relationship()
+    matches = relationship('Match', back_populates='tournament')
 
 
 class Match(Base):
@@ -78,15 +78,16 @@ class Match(Base):
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'))
     league_id = Column(Integer, ForeignKey('tournament.league_id'))
     series_id = Column(Integer)  # we can make a VIEW for Tournament games
-    region = Column(String)  # id --> name handled in schema.Match
-    lobby_type = Column(String)  # id --> name handled in schema.Match
-    game_mode = Column(String)  # id --> name handled in schema.Match
+    region = Column(String)
+    lobby_type = Column(String)
+    game_mode = Column(String)
     start_datetime = Column(DateTime, comment='held as naive, but UTC')
     duration = Column(Integer, comment='held as seconds')
     average_rank = Column(Integer)
     is_radiant_win = Column(Boolean)
 
-    # TODO: draft = relationship()
+    tournament = relationship('Tournament', back_populates='matches')
+    draft = relationship('MatchDraft', back_populates='match')
     # TODO: players = relationship()
     # TODO: events = relationship()
 
@@ -94,9 +95,20 @@ class Match(Base):
 class MatchDraft(Base):
     __tablename__ = 'match_draft'
 
+    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    draft_type = Column(String, primary_key=True, comment='ban_vote, ban, pick')
+    order = Column(Integer)
+    by_player_id = Column(Integer, ForeignKey('match_player.player_id'))
+    by_team = Column(String, comment='radiant, dire')
+
+    match = relationship('Match', back_populates='draft')
+
 
 class MatchPlayer(Base):
     __tablename__ = 'match_player'
+
+    # game_movement = relationship('PlayerMovement', back_populates='player')
 
 
 class PlayerMovement(Base):
@@ -104,10 +116,13 @@ class PlayerMovement(Base):
 
     id = Column(Integer, primary_key=True)
     match_id = Column(Integer, ForeignKey('match.match_id'))
-    player_id = Column(Integer, ForeignKey('match_player.player_id'))
+    hero_id = Column(Integer, ForeignKey('match_player.hero_id'))
     time = Column(Integer)
     x = Column(Integer)
     y = Column(Integer)
+
+    match = relationship('Match')
+    player = relationship('MatchPlayer', back_populates='game_movement')
 
 
 class MatchEvent(Base):
