@@ -11,6 +11,7 @@ from darkseer.database import Base
 
 class GameVersion(Base):
     __tablename__ = 'game_version'
+
     patch_id = Column(Integer, primary_key=True)
     patch = Column(String)
     release_date = Column(Date, comment='held as naive, but UTC')
@@ -38,30 +39,64 @@ class NonPlayerCharacter(Base):
 
 class Hero(Base):
     __tablename__ = 'hero'
+
     hero_id = Column(Integer, primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     hero_display_name = Column(String)
     hero_internal_name = Column(String)
     hero_uri = Column(String)
+    faction = Column(String, comment='radiant, dire')
     is_available_captains_mode = Column(Boolean)
+    vision_day = Column(Integer)
+    vision_night = Column(Integer)
+    is_melee = Column(Boolean)
+    turn_rate = Column(Boolean)
+    base_movespeed = Column(Integer)
+    attack_point = Column(Float)      # STRATZ: attackAnimationPoint
+    base_attack_time = Column(Float)  # STRATZ: attackRate
+    attack_range = Column(Float)
+    primary_attr = Column(String)
     base_agi = Column(Float)
     gain_agi = Column(Float)
     base_str = Column(Float)
     gain_str = Column(Float)
     base_int = Column(Float)
     gain_int = Column(Float)
-    ...
+    base_armor = Column(Float)
+    base_magic_armor = Column(Float)
 
 
 class Ability(Base):
     __tablename__ = 'ability'
+
     ability_id = Column(Integer, primary_key=True, autoincrement=False)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     ...
 
 
+class HeroTalent(Base):
+    __tablename__ = 'hero_talent'
+
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    is_left_side = Column(Boolean)
+    ...
+
+
+class HeroSkill(Base):
+    __tablename__ = 'hero_skill'
+
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    skill_level = Column(Integer)
+    ...
+
+
 class Item(Base):
     __tablename__ = 'item'
+
     item_id = Column(Integer, primary_key=True, autoincrement=False)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     ...
@@ -71,6 +106,7 @@ class Item(Base):
 
 class Tournament(Base):
     __tablename__ = 'tournament'
+
     league_id = Column(Integer, primary_key=True)
     league_name = Column(String)
     league_start_date = Column(Date, comment='held as naive, but UTC')
