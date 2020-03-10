@@ -90,7 +90,13 @@ class HeroSkill(Base):
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
-    skill_level = Column(Integer)
+    # NOTE:
+    #
+    # Array vs REL_HeroSkillLevel?
+    #
+    # - skills increase in potency with levels
+    #
+    # skill_level = Column(Integer)
     ...
 
 

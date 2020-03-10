@@ -10,6 +10,7 @@ def calc_magic_resistance(
     reductions: Iterable=(0,)
 ) -> float:
     """
+    Calculate a Hero's Magic Resistence.
 
     Formula:
 
