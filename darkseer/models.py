@@ -2,6 +2,7 @@ from sqlalchemy import (
     Column, ForeignKey, relationship,
     Date, DateTime, Integer, Float, Boolean, String
 )
+from sqlalchemy.postgresql import JSON
 
 from darkseer.database import Base
 
@@ -27,9 +28,17 @@ class GameVersion(Base):
 #     description = Column(String)
 
 
+class NonPlayerCharacter(Base):
+    __tablename__ = 'non_player_character'
+
+    npc_id = Column(Integer, primary_key=True)
+    patch_id = Column(Integer, primary_key=True)
+    npc_name = Column(String)
+
+
 class Hero(Base):
     __tablename__ = 'hero'
-    hero_id = Column(Integer, primary_key=True, autoincrement=False)
+    hero_id = Column(Integer, primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     hero_display_name = Column(String)
     hero_internal_name = Column(String)
@@ -68,7 +77,7 @@ class Tournament(Base):
     league_end_date = Column(Date, comment='held as naive, but UTC')
     prize_pool = Column(Integer)
 
-    matches = relationship('Match', back_populates='tournament')
+    # matches = relationship('Match', back_populates='tournament')
 
 
 class Match(Base):
@@ -86,9 +95,9 @@ class Match(Base):
     average_rank = Column(Integer)
     is_radiant_win = Column(Boolean)
 
-    tournament = relationship('Tournament', back_populates='matches')
-    draft = relationship('MatchDraft', back_populates='match')
-    # TODO: players = relationship()
+    # tournament = relationship('Tournament', back_populates='matches')
+    # draft = relationship('MatchDraft', back_populates='match')
+    # players = relationship('MatchPlayer', back_populates='match')
     # TODO: events = relationship()
 
 
@@ -102,12 +111,31 @@ class MatchDraft(Base):
     by_player_id = Column(Integer, ForeignKey('match_player.player_id'))
     by_team = Column(String, comment='radiant, dire')
 
-    match = relationship('Match', back_populates='draft')
+    # match = relationship('Match', back_populates='draft')
 
 
 class MatchPlayer(Base):
     __tablename__ = 'match_player'
 
+    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    slot = Column(Integer, primary_key=True)
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'))
+    steam_id = Column(Integer)
+    party_id = Column(Integer)
+    behavior_score = Column(Integer)
+    streak_prediction = Column(Integer)
+    role = Column(String)
+    kills = Column(Integer)
+    deaths = Column(Integer)
+    assists = Column(Integer)
+    last_hits = Column(Integer)
+    denies = Column(Integer)
+    gpm = Column(Integer)
+    xpm = Column(Integer)
+    final_level = Column(Integer)
+    player_abandoned = Column(Boolean)
+
+    # match = relationship('Match', back_populates='players')
     # game_movement = relationship('PlayerMovement', back_populates='player')
 
 
@@ -121,9 +149,51 @@ class PlayerMovement(Base):
     x = Column(Integer)
     y = Column(Integer)
 
-    match = relationship('Match')
-    player = relationship('MatchPlayer', back_populates='game_movement')
+    # match = relationship('Match')
+    # player = relationship('MatchPlayer', back_populates='game_movement')
 
 
 class MatchEvent(Base):
     __tablename__ = 'match_event'
+
+    id = Column(Integer, primary_key=True)
+    match_id = Column(Integer, ForeignKey('match.match_id'))
+    event_type_id = Column(Integer, ForeignKey('match_event_type.event_type_id'))
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'))
+    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'))
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'))
+    item_id = Column(Integer, ForeignKey('item.item_id'))
+    time = Column(Integer)
+    x = Column(Integer)
+    y = Column(Integer)
+    extra_data = Column(JSON)
+
+
+class MatchEventType(Base):
+    """
+
+    Types:
+    - Ability Learn
+    - Ability Use
+    - Item Purchase
+    - Item Use
+    - Kill
+    - Death
+    - Assist
+    - Creep Kill
+    - Creep Deny
+    - Gold Change
+    - Experience Change
+    - Buyback
+    - Courier Death
+    - Ward Placed
+    - Ward Destroyed
+    - Roshan Death
+    - Building Death
+    - Rune Spawn
+    - Rune Taken
+    """
+    __tablename__ = 'match_event_type'
+
+    event_type_id = Column(Integer, primary_key=True)
+    event_type = Column(String)
