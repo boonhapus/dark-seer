@@ -2,6 +2,13 @@ from operator import mul
 from typing import Iterable
 import functools as ft
 
+# TODO: Do we want to write a small simulator?
+#
+# Essentially, we can write an environment that takes a Hero model (at a given)
+# level, along with any number of item models and it will calculate the hero's
+# various stats (dmg, armor, ehp, magic resist, status resist, etc.)
+#
+
 
 def calc_magic_resistance(
     strength: int=0,

@@ -1,7 +1,6 @@
 from typing import List, Union
 import collections
 import itertools as it
-import asyncio
 
 import httpx
 
@@ -43,17 +42,30 @@ class StratzClient(AsyncThrottledClient):
     @property
     def base_url(self):
         return 'https://api.stratz.com'
-    
-    def _sanitize_graph_ql_query(self, query: str, **variables) -> str:
+
+    def _sanitize_gql_query(self, query: str, **variables) -> str:
         """
-        TODO
+        Format and send a GraphQL query.
+
+        Parameters
+        ----------
+        query : str
+            SDL to send to the graphql endpoint
+
+        **variables
+            var_name: var_value to replace in the SDL. Placeholders are
+            denoted with the format $var_name.
+
+        Returns
+        -------
+        sanitized_query : str
         """
         for name, value in variables.items():
             query = query.replace(f'${name}', f'{value}')
 
         return query
 
-    async def _graph_ql_query(self, query: str, **variables) -> httpx.Response:
+    async def _gql_query(self, query: str, **variables) -> httpx.Response:
         """
         Format and send a GraphQL query.
 
@@ -70,7 +82,7 @@ class StratzClient(AsyncThrottledClient):
         -------
         response : httpx.Response
         """
-        query = self._sanitize_graph_ql_query(query, **variables)
+        query = self._sanitize_gql_query(query, **variables)
         return await self.post(f'{self.base_url}/graphql', data={'query': query})
 
     async def patches(self) -> List[GameVersion]:
@@ -94,7 +106,7 @@ class StratzClient(AsyncThrottledClient):
           }
         }
         """
-        r = await self._graph_ql_query(query)
+        r = await self._gql_query(query)
         r.raise_for_status()
         return [GameVersion(**d) for d in r.json()['data']['game_version']]
 
@@ -144,7 +156,7 @@ class StratzClient(AsyncThrottledClient):
 
     async def tournaments(self, tiers: Union[List, int]=None) -> List[Tournament]:
         """
-        Returns the list of tracked Leagues.
+        Return a list of tracked Leagues.
 
         Tiers are listed in incrementing order:
           1 - Amateur
@@ -170,6 +182,15 @@ class StratzClient(AsyncThrottledClient):
             except TypeError:
                 pass
 
+        # NOTE:
+        #
+        #   We make 2 requests to the GraphQL endpoint here. Once to grab all
+        #   the leagues that match the <tiers> criteria and then once again to
+        #   grab 3 pages worth (up to 750 records) of matches for EACH
+        #   league_id. After some reformatting of the returned data, we can get
+        #   to all the match_ids per tournament.
+        #
+
         query = """
         {
           tournaments: leagues(tiers: $tiers) {
@@ -181,7 +202,7 @@ class StratzClient(AsyncThrottledClient):
           }
         }
         """
-        r = await self._graph_ql_query(query, tiers=tiers)
+        r = await self._qql_query(query, tiers=tiers)
         r.raise_for_status()
 
         league_info = r.json()['data']['tournaments']
@@ -192,23 +213,21 @@ class StratzClient(AsyncThrottledClient):
             league_id: leagueId
           }
         """
-        # We're kind abusing the GraphQL parameters here.
-        # <begin> will be a few values: 0, 250, 500 which
-        # will grab up to 750 matches in a single query.
-        # No tournament has over 500 matches as of writing
-        # this (2020/03/10), so 750 matches per tournament
-        # should be totally fine for now.
+        # We're kind abusing the GraphQL parameters here. <begin> will be a
+        # few values: 0, 250, 500 which will grab up to 750 matches in a single
+        # query. No tournament has over 500 matches as of writing (2020/03/10),
+        # so 750 matches per tournament should be totally fine for now.
         queries = '\n'.join([
-            self._sanitize_graph_ql_query(GQL_FMT, begin=n, id=data['league_id'], e=e)
+            self._sanitize_gql_query(GQL_FMT, begin=n, id=data['league_id'], e=e)
             for data in league_info
             for e, n in enumerate(range(0, 750, 250))
         ])
-        
-        r = await self._graph_ql_query('{$q}', q=queries)
+
+        r = await self._gql_query('{$q}', q=queries)
         r.raise_for_status()
 
         matches = collections.defaultdict(list)
-        
+
         for match in list(it.chain.from_iterable(r.json()['data'].values())):
             m = match['match_id']
             t = match['league_id']
@@ -223,6 +242,7 @@ class StratzClient(AsyncThrottledClient):
 
     async def match(self, match_id: int) -> Match:
         """
+        Return a single Match.
         """
         query = """{
           matches(ids: [5212485721]) {
