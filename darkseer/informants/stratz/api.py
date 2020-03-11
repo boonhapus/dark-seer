@@ -1,4 +1,6 @@
 from typing import List, Union
+import collections
+import itertools as it
 import asyncio
 
 import httpx
@@ -41,6 +43,15 @@ class StratzClient(AsyncThrottledClient):
     @property
     def base_url(self):
         return 'https://api.stratz.com'
+    
+    def _sanitize_graph_ql_query(self, query: str, **variables) -> str:
+        """
+        TODO
+        """
+        for name, value in variables.items():
+            query = query.replace(f'${name}', f'{value}')
+
+        return query
 
     async def _graph_ql_query(self, query: str, **variables) -> httpx.Response:
         """
@@ -59,9 +70,7 @@ class StratzClient(AsyncThrottledClient):
         -------
         response : httpx.Response
         """
-        for name, value in variables.items():
-            query = query.replace(f'${name}', f'{value}')
-
+        query = self._sanitize_graph_ql_query(query, **variables)
         return await self.post(f'{self.base_url}/graphql', data={'query': query})
 
     async def patches(self) -> List[GameVersion]:
@@ -175,64 +184,42 @@ class StratzClient(AsyncThrottledClient):
         r = await self._graph_ql_query(query, tiers=tiers)
         r.raise_for_status()
 
-        # TODO: remove all below in favor of a GraphQL-only query. right now,
-        #       we're making N api calls where..
-        #
-        #           N = (len(tournaments.matches) / 250) + 1
-        #
-        #       ..when this really could be N = 2. One pass to /graphql for all
-        #       the tournaments, and then another to grab all the matches for
-        #       the returned League IDs in call #1.
-        #
-        #       We'll still need to reformat into the <data> list below, but
-        #       that's no big deal. ;)
-        #
-        #       STATZ.Keo researching as of 2020/03/09
-        #
         league_info = r.json()['data']['tournaments']
 
-        coros = [
-            self._tournament_matches(data['league_id'], take=250)
+        GQL_FMT = """
+          matches_$id_$e: leagueMatches(request: {skip: $begin, take: 250, leagueId: $id}) {
+            match_id: id
+            league_id: leagueId
+          }
+        """
+        # We're kind abusing the GraphQL parameters here.
+        # <begin> will be a few values: 0, 250, 500 which
+        # will grab up to 750 matches in a single query.
+        # No tournament has over 500 matches as of writing
+        # this (2020/03/10), so 750 matches per tournament
+        # should be totally fine for now.
+        queries = '\n'.join([
+            self._sanitize_graph_ql_query(GQL_FMT, begin=n, id=data['league_id'], e=e)
             for data in league_info
-        ]
+            for e, n in enumerate(range(0, 750, 250))
+        ])
+        
+        r = await self._graph_ql_query('{$q}', q=queries)
+        r.raise_for_status()
+
+        matches = collections.defaultdict(list)
+        
+        for match in list(it.chain.from_iterable(r.json()['data'].values())):
+            m = match['match_id']
+            t = match['league_id']
+            matches[t].append(m)
 
         data = [
-            {**league, 'match_ids': matches}
-            for league, matches in zip(league_info, await asyncio.gather(*coros))
+            {**league, 'match_ids': matches[league['league_id']]}
+            for league in league_info
         ]
 
         return [Tournament.parse_obj(d) for d in data]
-
-    async def _tournament_matches(self, league_id: int, **params) -> List[int]:
-        """
-        Return all matches for a given League.
-
-        This is a recursive helper method, which folds through the
-        paginated STRATZ api. For the {league_id}/matches endpoint,
-        match data is returned in pages of 250 per GET.
-
-        Parameters
-        ----------
-        league_id : int
-            id of the tournament/league to retrieve matches for
-
-        **params
-            query parameters to supply to the STRATZ endpoint
-
-        Returns
-        -------
-        match_ids : List[int]
-        """
-        url = f'{self.base_url}/api/v1/league/{league_id}/matches'
-        r = await self.get(url, params=params)
-        data = r.json()
-
-        if len(data) == 250:
-            p = {**params, 'skip': params.get('skip', 0) + 250}
-            more_data = await self._tournament_matches(league_id, **p)
-            return [m['id'] for m in [*data, *more_data]]
-
-        return data
 
     async def match(self, match_id: int) -> Match:
         """
