@@ -202,7 +202,7 @@ class StratzClient(AsyncThrottledClient):
           }
         }
         """
-        r = await self._qql_query(query, tiers=tiers)
+        r = await self._gql_query(query, tiers=tiers)
         r.raise_for_status()
 
         league_info = r.json()['data']['tournaments']

@@ -165,7 +165,7 @@ class AsyncThrottledClient:
         """
         Simply passthrough the httpx Client.aclose().
         """
-        return await self._client.aclose()
+        await self._client.aclose()
 
     async def _request(self, *args, **kwargs) -> httpx.Response:
         """
@@ -197,3 +197,9 @@ class AsyncThrottledClient:
 
     def __str__(self):
         return f'<HTTP client for {self.name}>'
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.aclose()
