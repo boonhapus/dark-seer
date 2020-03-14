@@ -1,8 +1,9 @@
 from sqlalchemy import (
-    Column, ForeignKey, relationship,
+    Column, ForeignKey,
     Date, DateTime, Integer, Float, Boolean, String
 )
-from sqlalchemy.postgresql import JSON
+from sqlalchemy.dialects.postgresql import JSON
+# from sqlalchemy.orm import relationship
 
 from darkseer.database import Base
 

@@ -1,8 +1,10 @@
-from typing import Union
-import ayncio
+from typing import Union, List
+import asyncio
 
+from darkseer.database import Database
 from darkseer.models import Hero
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
+from darkseer.io import Image
 
 
 class ValveCDNClient(AsyncThrottledClient):
@@ -22,8 +24,9 @@ class ValveCDNClient(AsyncThrottledClient):
     def base_url(self):
         return 'http://cdn.dota2.com/apps/dota2'
 
-    async def minimap_icons(self, db):
+    async def minimap_icons(self, db: Database) -> List[Image]:
         """
+        TODO
         """
         async with db.session() as sess:
             heroes = await sess.query(Hero.uri).all()
@@ -33,10 +36,18 @@ class ValveCDNClient(AsyncThrottledClient):
             for uri in heroes
         ]
 
-        r = await asyncio.gather(*coros)
-        return r
+        data = [
+            {
+                'content': r.content,
+                'name': f'{hero}_minimap_icon',
+                'filetype': 'png'
+            }
+            for r, hero in zip(await asyncio.gather(*coros), heroes)
+        ]
+
+        return [Image(**d) for d in data]
 
     async def images(self, hero: Union[Hero, int]):
         """
+        TODO
         """
-        pass
