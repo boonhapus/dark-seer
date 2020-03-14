@@ -1,8 +1,6 @@
-from typing import Union, List
+from typing import Iterable, List
 import asyncio
 
-from darkseer.database import Database
-from darkseer.models import Hero
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
 from darkseer.io import Image
 
@@ -24,30 +22,43 @@ class ValveCDNClient(AsyncThrottledClient):
     def base_url(self):
         return 'http://cdn.dota2.com/apps/dota2'
 
-    async def minimap_icons(self, db: Database) -> List[Image]:
+    async def images(self, uris: Iterable, *, image_type: str) -> List[Image]:
         """
-        TODO
+        Retrieve Hero or Item images from the Valve CDN.
+
+        Parameters
+        ----------
+        uris : Iterable
+            uris for the heroes or items to retrieve images for
+
+        image_type : str
+            either 'icon' or 'image'
+
+        Returns
+        -------
+        images : List[Image]
         """
-        async with db.session() as sess:
-            heroes = await sess.query(Hero.uri).all()
+        if image_type == 'icon':
+            suffix = 'icon'
+        elif image_type == 'image':
+            suffix = 'full'
+        else:
+            raise ValueError(
+                f'image_type must be one of "icon" or "image", got {image_type}'
+            )
 
         coros = [
-            self.get(f'{self.base_url}/images/heroes/{uri}_icon.png')
-            for uri in heroes
+            self.get(f'{self.base_url}/images/heroes/{uri}_{suffix}.png')
+            for uri in uris
         ]
 
         data = [
             {
                 'content': r.content,
-                'name': f'{hero}_minimap_icon',
+                'name': f'{uri}_{suffix}',
                 'filetype': 'png'
             }
-            for r, hero in zip(await asyncio.gather(*coros), heroes)
+            for r, uri in zip(await asyncio.gather(*coros), uris)
         ]
 
         return [Image(**d) for d in data]
-
-    async def images(self, hero: Union[Hero, int]):
-        """
-        TODO
-        """

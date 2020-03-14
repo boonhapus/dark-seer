@@ -45,7 +45,7 @@ class StratzClient(AsyncThrottledClient):
 
     def _sanitize_gql_query(self, query: str, **variables) -> str:
         """
-        Format and send a GraphQL query.
+        Format a GraphQL query, replacing variables.
 
         Parameters
         ----------
