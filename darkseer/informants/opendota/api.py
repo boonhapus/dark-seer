@@ -58,6 +58,7 @@ class OpenDotaClient(AsyncThrottledClient):
         data_points : List[dict]
         """
         r = await self.get(f'{self.base_url}/explorer', params=f'sql={sql}')
+        r.raise_for_status()
         data = r.json()
 
         try:

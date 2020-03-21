@@ -1,7 +1,7 @@
 from ward import test, fixture, each, skip
 
 from darkseer.informants import StratzClient
-from darkseer.schema import GameVersion, Hero, Item, Tournament
+from darkseer.schema import GameVersion, Hero, Item, Tournament, Match
 
 
 @fixture
@@ -36,3 +36,10 @@ async def _(client=client):
     r = await client.items()
     assert isinstance(r, list)
     assert isinstance(r[0], Item)
+
+
+@skip('not implemented yet')
+@test('StratzClient.match returns Match', tags=['stratz', 'integration'])
+async def _(client=client):
+    r = await client.items()
+    assert isinstance(r, Match)
