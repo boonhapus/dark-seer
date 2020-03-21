@@ -154,20 +154,20 @@ class StratzClient(AsyncThrottledClient):
         """
         raise NotImplementedError('TODO: need to finalize schema.Item')
 
-    async def tournaments(self, tiers: Union[List, int]=None) -> List[Tournament]:
+    async def tournaments(self, tiers: Union[List, str]=None) -> List[Tournament]:
         """
         Return a list of tracked Leagues.
 
         Tiers are listed in incrementing order:
-          1 - Amateur
-          2 - Professional
-          3 - DPC Minors
-          4 - DPC Majors
-          5 - The International
+          Amateur
+          Professional
+          Premium      (aka DPC Minors)
+          Pro Circuit  (aka DPC Majors)
+          Main Event   (aka The International)
 
         Parameters
         ----------
-        tiers : list or int, default [3, 4, 5]
+        tiers : list or str, default [PREMIUM, PRO_CIRCUIT, MAIN_EVENT]
             filter applied to league divisions
 
         Returns
@@ -175,12 +175,11 @@ class StratzClient(AsyncThrottledClient):
         leagues : List[LeagueInfo]
         """
         if tiers is None:
-            tiers = [3, 4, 5]
+            tiers = ['PREMIUM', 'PRO_CIRCUIT', 'MAIN_EVENT']
+        elif isinstance(tiers, str):
+            tiers = [tiers.upper()]
         else:
-            try:
-                tiers = list(tiers)
-            except TypeError:
-                pass
+            tiers = [t.upper() for t in tiers]
 
         # NOTE:
         #
@@ -244,7 +243,8 @@ class StratzClient(AsyncThrottledClient):
         """
         Return a single Match.
         """
-        query = """{
+        query = """
+        {
           matches(ids: [5212485721]) {
             match_id: id
             patch_id: gameVersionId
@@ -258,5 +258,6 @@ class StratzClient(AsyncThrottledClient):
             average_rank: averageRank
             is_radiant_win: didRadiantWin
           }
-        }"""
+        }
+        """
         raise NotImplementedError('TODO: need to finalize schema.Item')

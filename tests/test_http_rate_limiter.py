@@ -1,25 +1,31 @@
 import time
+import asyncio
 
-from ward import test
+from ward import test, each
 
-from dota_info_wrapper.http import AsyncRateLimiter
-
-from tests.common import async_test
+from darkseer.http import AsyncRateLimiter
 
 
-@test('AsyncRateLimiter makes {n} requests in {s} seconds')
-@async_test
-async def _(cls=AsyncRateLimiter, n=3, s=3):
+@test('{limiter} makes {limiter._max_tokens} requests in {limiter._seconds} seconds', tags=['integration'])
+async def _(
+    limiter=each(
+        AsyncRateLimiter(tokens=5, seconds=5, burst=1),
+        AsyncRateLimiter(tokens=3, seconds=3, burst=1),
+    )
+):
     r = 0
-    limiter = cls(tokens=n, seconds=s)
     start = time.monotonic()
 
     while True:
-        print(r)
         async with limiter:
             r += 1
 
-        if (time.monotonic() - start) >= s:
+        await asyncio.sleep(0)
+
+        # +0.001s to account for ward/asyncio overhead
+        elapsed = (time.monotonic() - start)
+        print(elapsed)
+        if elapsed >= (limiter._seconds + .01):
             break
 
-    assert r == n
+    assert r == limiter._max_tokens

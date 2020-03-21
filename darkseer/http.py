@@ -19,13 +19,13 @@ class AsyncRateLimiter:
     seconds : int
         amount of time between period resets
 
-    burst : int, default <tokens>
+    burst : int, default 1
         number of consecutive requests before limiting happens
     """
-    def __init__(self, tokens: int, seconds: int, *, burst: int=None):
+    def __init__(self, tokens: int, seconds: int, *, burst: int=1):
         self._max_tokens = tokens
         self._seconds = seconds
-        self._burst = burst if burst is not None else tokens
+        self._burst = burst
         self._in_queue = {}
         self._last_checked = None
         self.tokens = self._burst
@@ -113,7 +113,8 @@ class AsyncRateLimiter:
         return f'AsyncRateLimiter(tokens={t}, seconds={s}, burst={b})'
 
     def __str__(self):
-        return f'<AsyncRateLimiter @ {self.rate:.2f} requests per second>'
+        b = '' if self._burst == 1 else f' + {self._burst}req burst'
+        return f'<AsyncRateLimiter @ {self.rate:.2f}req/s{b}>'
 
 
 class AsyncThrottledClient:

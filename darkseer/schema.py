@@ -43,21 +43,25 @@ class EnumeratedModel(BaseModel):
 
 
 class GameVersion(BaseModel):
+    __schema_name__ = 'GameVersion'
     patch_id: int
     patch: str
     release_date: date
 
 
 class Hero(BaseModel):
+    __schema_name__ = 'Hero'
     hero_id: int
     ...
 
 
 class Item(BaseModel):
+    __schema_name__ = 'Item'
     ...
 
 
 class Tournament(BaseModel):
+    __schema_name__ = 'Tournament'
     league_id: int
     league_name: str
     league_start_date: date
@@ -67,4 +71,5 @@ class Tournament(BaseModel):
 
 
 class Match(EnumeratedModel):
+    __schema_name__ = 'Match'
     ...
