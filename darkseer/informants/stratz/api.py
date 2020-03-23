@@ -17,14 +17,14 @@ class StratzClient(AsyncThrottledClient):
     Documentation:
         https://docs.stratz.com/
 
-    [ANON] Rate limit is 2,500/day, 500/hour @ 10 requests per second.
-    [AUTH] Rate limit is 5,000/day, 500/hour @ 10 requests per second.
+    [ANON] Rate limit is 300/hour, 150/minute @ 20 requests per second.
+    [AUTH] Rate limit is 500/hour, 150/minute @ 20 requests per second.
 
     Attributes
     ----------
     bearer_token : str, default None
         token in the format "Bearer XXXXXX..."
-        if supplied, elevates the per-day rate limit from 2,500 to 5,000
+        if supplied, elevates the per-hour rate limit
     """
     def __init__(self, bearer_token: str=None):
         if bearer_token is not None:
@@ -158,7 +158,7 @@ class StratzClient(AsyncThrottledClient):
         """
         Return a list of tracked Leagues.
 
-        Tiers are listed in incrementing order:
+        Available tiers:
           Amateur
           Professional
           Premium      (aka DPC Minors)
@@ -167,7 +167,7 @@ class StratzClient(AsyncThrottledClient):
 
         Parameters
         ----------
-        tiers : list or str, default [PREMIUM, PRO_CIRCUIT, MAIN_EVENT]
+        tiers : list or str, default ['PREMIUM', 'PRO_CIRCUIT', 'MAIN_EVENT']
             filter applied to league divisions
 
         Returns
@@ -177,9 +177,9 @@ class StratzClient(AsyncThrottledClient):
         if tiers is None:
             tiers = ['PREMIUM', 'PRO_CIRCUIT', 'MAIN_EVENT']
         elif isinstance(tiers, str):
-            tiers = [tiers.upper()]
+            tiers = [tiers.replace(' ', '_').upper()]
         else:
-            tiers = [t.upper() for t in tiers]
+            tiers = [t.replace(' ', '_').upper() for t in tiers]
 
         # NOTE:
         #
