@@ -36,7 +36,7 @@ class StratzClient(AsyncThrottledClient):
         else:
             opts = {}
 
-        limiter = AsyncRateLimiter(tokens=10, seconds=1, burst=1)
+        limiter = AsyncRateLimiter(tokens=20, seconds=1)
         super().__init__(name='stratz', rate_limiter=limiter, **opts)
 
     @property
@@ -63,7 +63,7 @@ class StratzClient(AsyncThrottledClient):
         for name, value in variables.items():
             query = query.replace(f'${name}', f'{value}')
 
-        return query
+        return query.replace("'", "")
 
     async def _gql_query(self, query: str, **variables) -> httpx.Response:
         """
@@ -192,7 +192,7 @@ class StratzClient(AsyncThrottledClient):
 
         query = """
         {
-          tournaments: leagues(tiers: $tiers) {
+          tournaments: leagues(request: {tiers: $tiers}) {
             league_id: id
             league_name: displayName
             league_start_date: startDateTime
@@ -207,35 +207,44 @@ class StratzClient(AsyncThrottledClient):
         league_info = r.json()['data']['tournaments']
 
         GQL_FMT = """
-          matches_$id_$e: leagueMatches(request: {skip: $begin, take: 250, leagueId: $id}) {
-            match_id: id
-            league_id: leagueId
+          league_$id: league(id: $id) {
+            matches(request: {skip: 0, take: 1000}) {
+              match_id: id
+              league_id: leagueId
+            }
           }
         """
-        # We're kind abusing the GraphQL parameters here. <begin> will be a
-        # few values: 0, 250, 500 which will grab up to 750 matches in a single
-        # query. No tournament has over 500 matches as of writing (2020/03/10),
-        # so 750 matches per tournament should be totally fine for now.
+        # No tournament has over 500 matches as of writing (2020/03/23), so
+        # 1000 matches per tournament should be totally fine for now.
         queries = '\n'.join([
-            self._sanitize_gql_query(GQL_FMT, begin=n, id=data['league_id'], e=e)
+            self._sanitize_gql_query(GQL_FMT, id=data['league_id'])
             for data in league_info
-            for e, n in enumerate(range(0, 750, 250))
         ])
 
         r = await self._gql_query('{$q}', q=queries)
         r.raise_for_status()
 
-        matches = collections.defaultdict(list)
+        # This is not very pretty...
+        #
+        collect = collections.defaultdict(list)
 
-        for match in list(it.chain.from_iterable(r.json()['data'].values())):
+        match_data = it.chain.from_iterable(
+            v
+            for v in r.json()['data'].values()
+            for v in v.values()
+        )
+
+        for match in match_data:
             m = match['match_id']
             t = match['league_id']
-            matches[t].append(m)
+            collect[t].append(m)
 
         data = [
-            {**league, 'match_ids': matches[league['league_id']]}
+            {**league, 'match_ids': collect[league['league_id']]}
             for league in league_info
         ]
+        #
+        # can we do better ... ?
 
         return [Tournament.parse_obj(d) for d in data]
 

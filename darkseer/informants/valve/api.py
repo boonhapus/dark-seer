@@ -15,7 +15,7 @@ class ValveCDNClient(AsyncThrottledClient):
     Rate limit is strictly limited @ 1 request per second.
     """
     def __init__(self):
-        limiter = AsyncRateLimiter(tokens=1, seconds=1, burst=1)
+        limiter = AsyncRateLimiter(tokens=1, seconds=1)
         super().__init__(name='opendota', rate_limiter=limiter)
 
     @property

@@ -34,7 +34,7 @@ class OpenDotaClient(AsyncThrottledClient):
     Rate limit is 50,000/month @ 60 requests per minute.
     """
     def __init__(self):
-        limiter = AsyncRateLimiter(tokens=60, seconds=60, burst=1)
+        limiter = AsyncRateLimiter(tokens=60, seconds=60)
         super().__init__(name='opendota', rate_limiter=limiter)
 
     @property
