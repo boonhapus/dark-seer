@@ -229,7 +229,9 @@ class StratzClient(AsyncThrottledClient):
         collect = collections.defaultdict(list)
 
         match_data = it.chain.from_iterable(
-                         v.values() for v in r.json()['data'].values()
+                         data
+                         for v in r.json()['data'].values()
+                         for data in v.values()
                      )
 
         for match in match_data:
