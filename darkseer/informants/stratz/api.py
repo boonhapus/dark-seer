@@ -185,9 +185,9 @@ class StratzClient(AsyncThrottledClient):
         #
         #   We make 2 requests to the GraphQL endpoint here. Once to grab all
         #   the leagues that match the <tiers> criteria and then once again to
-        #   grab 3 pages worth (up to 750 records) of matches for EACH
-        #   league_id. After some reformatting of the returned data, we can get
-        #   to all the match_ids per tournament.
+        #   grab up to 1000 matches for EACH league_id. After some reformatting
+        #   of the returned data, we can get to all the match_ids per
+        #   tournament.
         #
 
         query = """
@@ -229,10 +229,8 @@ class StratzClient(AsyncThrottledClient):
         collect = collections.defaultdict(list)
 
         match_data = it.chain.from_iterable(
-            v
-            for v in r.json()['data'].values()
-            for v in v.values()
-        )
+                         v.values() for v in r.json()['data'].values()
+                     )
 
         for match in match_data:
             m = match['match_id']
