@@ -2,6 +2,7 @@ from datetime import date
 from typing import Optional, List
 
 from pydantic import BaseModel, validator
+import sqlalchemy as sa
 
 
 class EnumeratedModel(BaseModel):
@@ -48,16 +49,32 @@ class GameVersion(BaseModel):
     patch: str
     release_date: date
 
+    def __str__(self):
+        date = self.release_date.strftime('%Y-%m-%d')
+        return f'<GameVersion: [{date}] patch {self.patch: <5}>'
+
+    def from_model(cls, game_version, *, session=None):
+        if session is None:
+            session = sa.inspect(game_version).session
+
+        return cls.from_orm(game_version)
+
 
 class Hero(BaseModel):
     __schema_name__ = 'Hero'
     hero_id: int
     ...
 
+    def __str__(self):
+        return f'<Hero: [{self.hero_id}] {self.display_name}>'
+
 
 class Item(BaseModel):
     __schema_name__ = 'Item'
     ...
+
+    def __str__(self):
+        return f'<Item: [{self.item_id}] {self.display_name}>'
 
 
 class Tournament(BaseModel):
@@ -68,6 +85,29 @@ class Tournament(BaseModel):
     league_end_date: date
     prize_pool: Optional[int]
     match_ids: List[int]
+
+    def __str__(self):
+        name = self.league_name
+        date = self.league_start_date.strftime('%Y-%m-%d')
+        prize = self.prize_pool
+        n_matches = len(self.match_ids)
+        return f'<Tournament: [{date}] {name} ({n_matches} matches) ${prize:,}>'
+
+    @classmethod
+    def from_model(cls, tournament, *, session=None):
+        if session is None:
+            session = sa.inspect(tournament).session
+
+        data = {
+            'league_id': tournament.league_id,
+            'league_name': tournament.league_name,
+            'league_start_date': tournament.league_start_date,
+            'league_end_date': tournament.league_end_date,
+            'prize_pool': tournament.prize_pool,
+            'match_ids': [m.id for m in tournament.matches]
+        }
+
+        return cls(**data)
 
 
 class Match(EnumeratedModel):

@@ -3,7 +3,7 @@ from sqlalchemy import (
     Date, DateTime, Integer, Float, Boolean, String
 )
 from sqlalchemy.dialects.postgresql import JSON
-# from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship
 
 from darkseer.database import Base
 
@@ -120,7 +120,7 @@ class Tournament(Base):
     league_end_date = Column(Date, comment='held as naive, but UTC')
     prize_pool = Column(Integer)
 
-    # matches = relationship('Match', back_populates='tournament')
+    matches = relationship('Match', back_populates='tournament')
 
 
 class Match(Base):
