@@ -123,22 +123,33 @@ class Tournament(Base):
     matches = relationship('Match', back_populates='tournament')
 
 
+class CompetitiveTeam(Base):
+    __tablename__ = 'competitive_team'
+
+    team_id = Column(Integer, primary_key=True)
+    team_name = Column(String)
+    ...
+
+
 class Match(Base):
     __tablename__ = 'match'
 
     match_id = Column(Integer, primary_key=True)
-    patch_id = Column(Integer, ForeignKey('game_version.patch_id'))
-    league_id = Column(Integer, ForeignKey('tournament.league_id'))
-    series_id = Column(Integer)  # we can make a VIEW for Tournament games
     region = Column(String)
     lobby_type = Column(String)
     game_mode = Column(String)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'))
     start_datetime = Column(DateTime, comment='held as naive, but UTC')
     duration = Column(Integer, comment='held as seconds')
-    average_rank = Column(Integer)
     is_radiant_win = Column(Boolean)
+    is_stats = Column(Boolean)
+    league_id = Column(Integer, ForeignKey('tournament.league_id'))
+    series_id = Column(Integer)  # we can make a VIEW for Tournament games
+    radiant_team_id: Column(Integer, ForeignKey('competitive_team.id'))
+    dire_team_id: Column(Integer, ForeignKey('competitive_team.id'))
+    rank = Column(Integer)
 
-    # tournament = relationship('Tournament', back_populates='matches')
+    tournament = relationship('Tournament', back_populates='matches')
     # draft = relationship('MatchDraft', back_populates='match')
     # players = relationship('MatchPlayer', back_populates='match')
     # TODO: events = relationship()
@@ -149,12 +160,11 @@ class MatchDraft(Base):
 
     match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
-    draft_type = Column(String, primary_key=True, comment='ban_vote, ban, pick')
-    order = Column(Integer)
+    draft_type = Column(String, primary_key=True, comment='ban vote, ban, pick')
+    draft_order = Column(Integer)
     by_player_id = Column(Integer, ForeignKey('match_player.player_id'))
-    by_team = Column(String, comment='radiant, dire')
 
-    # match = relationship('Match', back_populates='draft')
+    match = relationship('Match', back_populates='draft')
 
 
 class MatchPlayer(Base):

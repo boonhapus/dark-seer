@@ -4,10 +4,10 @@ import itertools as it
 
 import httpx
 
-from darkseer.schema import Hero, Item, Match, Tournament
+from darkseer.schema import Hero, Item, Tournament
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
 
-from .schema import GameVersion
+from .schema import GameVersion, Match
 
 
 class StratzClient(AsyncThrottledClient):
@@ -248,25 +248,42 @@ class StratzClient(AsyncThrottledClient):
 
         return [Tournament.parse_obj(d) for d in data]
 
-    async def match(self, match_id: int) -> Match:
+    async def matches(self, *match_ids: int) -> List[Match]:
         """
         Return a single Match.
         """
         query = """
         {
-          matches(ids: [5212485721]) {
+          matches(ids: $match_ids) {
             match_id: id
-            patch_id: gameVersionId
-            league_id: leagueId
-            series_id: seriesId
-            start_datetime: startDateTime
-            duration: durationSeconds
             region: regionId
             lobby_type: lobbyType
             game_mode: gameMode
-            average_rank: averageRank
+            patch_id: gameVersionId
+            start_datetime: startDateTime
+            duration: durationSeconds
             is_radiant_win: didRadiantWin
+            is_stats: isStats
+            league_id: leagueId
+            series_id: seriesId
+            radiant_team_id: radiantTeamId
+            dire_team_id: direTeamId
+            rank: actualRank
+            players {
+              steam_id: steamAccountId
+            }
+            stats {
+              draft: pickBans {
+                is_pick: isPick
+                banned: wasBannedSuccessfully
+                by_player_index: playerIndex
+                picked_hero_id: heroId
+                banned_hero_id: bannedHeroId
+                draft_order: order
+              }
+            }
           }
         }
         """
-        raise NotImplementedError('TODO: need to finalize schema.Item')
+        r = await self._gql_query(query, match_ids=list(match_ids))
+        return [Match.parse_obj(m) for m in r.json()['data']['matches']]

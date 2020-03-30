@@ -19,7 +19,8 @@ async def _(
         async with limiter:
             r += 1
 
-        if (time.monotonic() - start) >= limiter._seconds:
+        # incl. small buffer of .001 to account for asyncio measurements
+        if (time.monotonic() - start + .001) >= limiter._seconds:
             break
 
     assert r == limiter._max_tokens

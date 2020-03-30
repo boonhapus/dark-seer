@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import validator
+from pydantic import validator, root_validator
 
-from darkseer.schema import EnumeratedModel, GameVersion
+from darkseer.schema import GameVersion, Match
 
 
 class GameVersion(GameVersion):
@@ -18,18 +18,35 @@ class GameVersion(GameVersion):
         return datetime.utcfromtimestamp(v)
 
 
-# class MatchSummary(EnumeratedModel):
-#     """
-#     Basic information about a Match.
-#     """
-#     match_id: int
-#     league_id: int
-#     start_datetime: datetime
-#     parsed_datetime: Optional[datetime]
-#     duration: int
-#     region: str
-#     lobby_type: str
-#     game_mode: str
-#     radiant_team_id: int
-#     dire_team_id: int
-#     is_radiant_win: bool
+class Match(Match):
+    """
+    """
+
+    @root_validator(pre=True)
+    def _prepare_stats(cls, data: dict) -> dict:
+        data['draft'] = []
+
+        # handle reformatting of MatchDraft
+        for draft_item in data['stats']['draft']:
+
+            if draft_item['is_pick']:
+                hero_id = draft_item['picked_hero_id']
+                draft_type = 'pick'
+            else:
+                hero_id = draft_item['banned_hero_id']
+                draft_type = 'ban' if draft_item['banned'] else 'ban vote'
+
+            try:
+                player_id = data['players'][draft_item['by_player_index']]['steam_id']
+            except TypeError:
+                player_id = None
+
+            data['draft'].append({
+                'match_id': data['match_id'],
+                'hero_id': hero_id,
+                'draft_type': draft_type,
+                'draft_order': draft_item['draft_order'],
+                'by_player_id': player_id
+            })
+
+        return data

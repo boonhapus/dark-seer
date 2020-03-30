@@ -22,6 +22,13 @@ async def _(
     assert isinstance(r[0], result)
 
 
+@test('StratzClient.matches returns List[Match]', tags=['stratz', 'integration'])
+async def _(client=client):
+    r = await client.matches(4985891168, 4986133311, 4986260666, 4986362254, 4986461644)
+    assert isinstance(r, list)
+    assert isinstance(r[0], Match)
+
+
 @skip('not implemented yet')
 @test('StratzClient.heroes returns List[Hero]', tags=['stratz', 'integration'])
 async def _(client=client):
@@ -36,10 +43,3 @@ async def _(client=client):
     r = await client.items()
     assert isinstance(r, list)
     assert isinstance(r[0], Item)
-
-
-@skip('not implemented yet')
-@test('StratzClient.match returns Match', tags=['stratz', 'integration'])
-async def _(client=client):
-    r = await client.items()
-    assert isinstance(r, Match)
