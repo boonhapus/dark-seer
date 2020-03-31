@@ -20,8 +20,8 @@ class GameVersion(GameVersion):
 
 class Match(Match):
     """
+    Transformer for the STRATZ repr of a Match.
     """
-
     @root_validator(pre=True)
     def _prepare_stats(cls, data: dict) -> dict:
         data['draft'] = []
@@ -37,16 +37,16 @@ class Match(Match):
                 draft_type = 'ban' if draft_item['banned'] else 'ban vote'
 
             try:
-                player_id = data['players'][draft_item['by_player_index']]['steam_id']
+                steam_id = data['players'][draft_item['by_player_index']]['steam_id']
             except TypeError:
-                player_id = None
+                steam_id = None
 
             data['draft'].append({
                 'match_id': data['match_id'],
                 'hero_id': hero_id,
                 'draft_type': draft_type,
                 'draft_order': draft_item['draft_order'],
-                'by_player_id': player_id
+                'by_steam_id': steam_id
             })
 
         return data

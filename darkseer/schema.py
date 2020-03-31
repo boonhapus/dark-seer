@@ -1,3 +1,10 @@
+"""
+Schema exist for the sole purpose of validating and sanitizing INCOMING
+data into Dark Seer. The base darkseer.schema demonstrates the final
+form the data will be in before going into the database. Any informants
+who process data shall inherit from and validate/transform data before
+it reaches these schema.
+"""
 from datetime import date, datetime
 from typing import Optional, List
 
@@ -12,7 +19,7 @@ class GameVersion(BaseModel):
 
     def __str__(self):
         date = self.release_date.strftime('%Y-%m-%d')
-        return f'<GameVersion: [{date}] patch {self.patch: <5}>'
+        return f'<[s] GameVersion [{date}] patch {self.patch: <5}>'
 
 
 class Hero(BaseModel):
@@ -21,7 +28,7 @@ class Hero(BaseModel):
     ...
 
     def __str__(self):
-        return f'<Hero: [{self.hero_id}] {self.display_name}>'
+        return f'<[s] Hero: [{self.hero_id}] {self.display_name}>'
 
 
 class Item(BaseModel):
@@ -29,7 +36,7 @@ class Item(BaseModel):
     ...
 
     def __str__(self):
-        return f'<Item: [{self.item_id}] {self.display_name}>'
+        return f'<[s] Item: [{self.item_id}] {self.display_name}>'
 
 
 class Tournament(BaseModel):
@@ -46,7 +53,7 @@ class Tournament(BaseModel):
         date = self.league_start_date.strftime('%Y-%m-%d')
         prize = self.prize_pool
         n_matches = len(self.match_ids)
-        return f'<Tournament: [{date}] {name} ({n_matches} matches) ${prize:,}>'
+        return f'<[s] Tournament: [{date}] {name} ({n_matches} matches) ${prize:,}>'
 
 
 class MatchDraft(BaseModel):
@@ -55,7 +62,12 @@ class MatchDraft(BaseModel):
     hero_id: int
     draft_type: str
     draft_order: Optional[int]
-    by_player_id: Optional[int]
+    by_steam_id: Optional[int]
+
+    def __str__(self):
+        type_ = self.draft_type
+        no = f' #{self.draft_order}' if self.draft_order is not None else ''
+        return f'<[s] Draft: {type_}{no} for hero={self.hero_id}>'
 
 
 class Match(BaseModel):
@@ -114,4 +126,4 @@ class Match(BaseModel):
         ranked = 'Ranked' if self.is_stats else 'Unranked'
         dt = self.start_datetime.strftime('%Y-%m-%d %H:%M:%S %Z')
         winner = 'Radiant' if self.is_radiant_win else 'Dire'
-        return f'<{ranked}Match: [{dt}] {self.match_id} - Winner: {winner}>'
+        return f'<[s] {ranked}Match: [{dt}] {self.match_id} - Winner: {winner}>'
