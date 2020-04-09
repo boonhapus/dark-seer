@@ -289,29 +289,6 @@ class MatchDraft(Base):
 
 
 class MatchEvent(Base):
-    __tablename__ = 'match_event'
-
-    id = Column(Integer, primary_key=True)
-    match_id = Column(Integer, ForeignKey('match.match_id'))
-    event_type_id = Column(Integer, ForeignKey('match_event_type.event_type_id'))
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'))
-    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'))
-    ability_id = Column(Integer, ForeignKey('ability.ability_id'))
-    item_id = Column(Integer, ForeignKey('item.item_id'))
-    time = Column(Integer)
-    x = Column(Integer)
-    y = Column(Integer)
-    extra_data = Column(JSON)
-
-    event_type = relationship('MatchEventType', back_populates='match_events')
-
-    def __str__(self):
-        name = self.event_type.event_type
-        time = self.time
-        return f'<[m] MatchEvent {name} @ {time} in {self.match_id}>'
-
-
-class MatchEventType(Base):
     """
 
     Types:
@@ -335,14 +312,21 @@ class MatchEventType(Base):
     - Rune Spawn
     - Rune Taken
     """
-    __tablename__ = 'match_event_type'
+    __tablename__ = 'match_event'
 
-    event_type_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    match_id = Column(Integer, ForeignKey('match.match_id'))
     event_type = Column(String)
-
-    match_events = relationship('MatchEvent', back_populates='event_type')
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), nullable=True)
+    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), nullable=True)
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'), nullable=True)
+    item_id = Column(Integer, ForeignKey('item.item_id'), nullable=True)
+    time = Column(Integer)
+    x = Column(Integer)
+    y = Column(Integer)
+    extra_data = Column(JSON)
 
     def __str__(self):
-        id = self.event_type_id
         name = self.event_type
-        return f'<[m] MatchEventType {name} (id {id})>'
+        time = self.time
+        return f'<[m] MatchEvent {name} @ {time} in {self.match_id}>'
