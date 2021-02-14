@@ -16,9 +16,13 @@ pydantic = "^1.4"
 httpx = "^0.12.1"
 psycopg2 = "^2.8.5"
 altair = "^4.1.0"
+databases = "^0.4.1"
+asyncpg = "^0.22.0"
+rich = "^9.10.0"
+typer = "^0.3.2"
+toml = "^0.10.2"
 
 [tool.poetry.dev-dependencies]
-ward = "^0.42.0-beta.0"
 ipykernel = "^5.2.0"
 
 
