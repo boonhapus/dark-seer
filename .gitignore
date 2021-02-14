@@ -136,3 +136,4 @@ secrets.py
 .*.py
 !.gitignore
 _notebooks/
+.config/
