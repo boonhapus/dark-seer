@@ -245,29 +245,25 @@ class MatchPlayer(Base):
         return f'<[m] Player: slot {self.slot} on {hero_name}>'
 
 
-class PlayerMovement(Base):
-    __tablename__ = 'player_movement'
+class HeroMovement(Base):
+    __tablename__ = 'hero_movement'
 
+    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     id = Column(Integer, primary_key=True)
-    match_id = Column(Integer)
-    hero_id = Column(Integer)
     time = Column(Integer)
     x = Column(Integer)
     y = Column(Integer)
 
-    __table_args__ = (ForeignKeyConstraint([match_id, hero_id],
-                                           [MatchPlayer.match_id, MatchPlayer.hero_id]),
-                      {})
-
-    player = relationship('MatchPlayer', back_populates='game_movement')
+    match = relationship('Match')
+    hero = relationship('Hero')
 
     def __str__(self):
-        player = self.player.player_name
-        hero = self.player.hero.display_name
+        hero = self.hero.display_name
         time = self.time
         x = self.x
         y = self.y
-        return f'<[m] Movement of {hero} ({player}) @ {time} loc: ({x}, {y})>'
+        return f'<[m] Movement of {hero} @ {time} loc: ({x}, {y})>'
 
 
 class MatchDraft(Base):
