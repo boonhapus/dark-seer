@@ -124,13 +124,18 @@ class StratzClient(AsyncThrottledClient):
         """
         query = """
         {
-          heroes {
-            hero_id: id
-            display_name: displayName
+          constants {
+            heroes {
+              hero_id: id
+              display_name: displayName
+              uri: shortName
+            }
           }
         }
         """
-        raise NotImplementedError('TODO: need to finalize schema.Hero')
+        r = await self._gql_query(query)
+        r.raise_for_status()
+        return [Hero(**d) for d in r.json()['data']['constants']['heroes']]
 
     async def items(self) -> List[Item]:
         """
@@ -146,13 +151,18 @@ class StratzClient(AsyncThrottledClient):
         """
         query = """
         {
-          items {
-            id: id
-            display_name: displayName
+          constants {
+            items {
+              item_id: id
+              display_name: displayName
+              uri: shortName
+            }
           }
         }
         """
-        raise NotImplementedError('TODO: need to finalize schema.Item')
+        r = await self._gql_query(query)
+        r.raise_for_status()
+        return [Item(**d) for d in r.json()['data']['constants']['items']]
 
     async def tournaments(self, tiers: Union[List, str]=None) -> List[Tournament]:
         """

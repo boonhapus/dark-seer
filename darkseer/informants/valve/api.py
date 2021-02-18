@@ -1,8 +1,17 @@
-from typing import Iterable, List
+from typing import Union, List
 import asyncio
+import enum
 
+from pydantic import validate_arguments
+
+from darkseer.schema import Hero, Item
 from darkseer.http import AsyncThrottledClient, AsyncRateLimiter
 from darkseer.io import Image
+
+
+class ImageType(str, enum.Enum):
+    icon = 'icon'
+    full = 'image'
 
 
 class ValveCDNClient(AsyncThrottledClient):
@@ -16,20 +25,21 @@ class ValveCDNClient(AsyncThrottledClient):
     """
     def __init__(self):
         limiter = AsyncRateLimiter(tokens=1, seconds=1)
-        super().__init__(name='opendota', rate_limiter=limiter)
+        super().__init__(name='valve', rate_limiter=limiter)
 
     @property
     def base_url(self):
         return 'http://cdn.dota2.com/apps/dota2'
 
-    async def images(self, uris: Iterable, *, image_type: str) -> List[Image]:
+    @validate_arguments
+    async def images(self, entities: List[Hero], *, image_type: ImageType) -> List[Image]:
         """
-        Retrieve Hero or Item images from the Valve CDN.
+        Retrieve Hero images from the Valve CDN.
 
         Parameters
         ----------
-        uris : Iterable
-            uris for the heroes or items to retrieve images for
+        entities : Iterable[str]
+            entities for the heroes to retrieve images for
 
         image_type : str
             either 'icon' or 'image'
@@ -38,27 +48,14 @@ class ValveCDNClient(AsyncThrottledClient):
         -------
         images : List[Image]
         """
-        if image_type == 'icon':
-            suffix = 'icon'
-        elif image_type == 'image':
-            suffix = 'full'
-        else:
-            raise ValueError(
-                f'image_type must be one of "icon" or "image", got {image_type}'
-            )
+        endpoint = f'{self.base_url}/images/heroes'
+        img_calls = []
 
-        coros = [
-            self.get(f'{self.base_url}/images/heroes/{uri}_{suffix}.png')
-            for uri in uris
-        ]
+        for entity in entities:
+            headers = {'fname': entity.display_name}
+            url = f'{endpoint}/{entity.uri}_{image_type.name}.png'
+            img_calls.append(self.get(url, headers=headers))
 
-        data = [
-            {
-                'content': r.content,
-                'name': f'{uri}_{suffix}',
-                'filetype': 'png'
-            }
-            for r, uri in zip(await asyncio.gather(*coros), uris)
-        ]
-
-        return [Image(**d) for d in data]
+        for coro in asyncio.as_completed(img_calls):
+            r = await coro
+            yield Image(r.content, name=r.request.headers['fname'], filetype='png')

@@ -25,6 +25,8 @@ class GameVersion(BaseModel):
 class Hero(BaseModel):
     __schema_name__ = 'Hero'
     hero_id: int
+    uri: str
+    display_name: str
     ...
 
     def __str__(self):
@@ -33,7 +35,9 @@ class Hero(BaseModel):
 
 class Item(BaseModel):
     __schema_name__ = 'Item'
-    ...
+    item_id: int
+    uri: str
+    display_name: Optional[str]
 
     def __str__(self):
         return f'<[s] Item: [{self.item_id}] {self.display_name}>'
