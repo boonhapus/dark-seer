@@ -21,6 +21,7 @@ asyncpg = "^0.22.0"
 rich = "^9.10.0"
 typer = "^0.3.2"
 toml = "^0.10.2"
+aiofiles = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
 ipykernel = "^5.2.0"
