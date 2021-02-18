@@ -137,3 +137,4 @@ secrets.py
 !.gitignore
 _notebooks/
 .config/
+darkseer/img/*
