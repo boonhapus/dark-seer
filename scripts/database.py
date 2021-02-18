@@ -1,5 +1,5 @@
-from enum import Enum
 import pathlib
+import enum
 
 from rich.prompt import Confirm, Prompt
 from rich import print
@@ -47,7 +47,7 @@ def _drop_everything(engine: sa.engine.Engine) -> None:
                 if not fk['name']:
                     continue
 
-                fks.append(ForeignKeyConstraint((), (), name=fk["name"]))
+                fks.append(ForeignKeyConstraint((), (), name=fk['name']))
 
             tables.append(Table(table_name, meta, *fks))
             all_fk.extend(fks)
@@ -83,7 +83,7 @@ def _receive_after_create(target, connection, **kw):
     print(f'[green]CREATE TABLE[/]: {target}')
 
 
-class DBDialect(str, Enum):
+class DBDialect(str, enum.Enum):
     postgresql = 'postgresql'
     mysql = 'mysql'
     sqlite = 'sqlite'
