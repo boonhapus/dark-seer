@@ -7,16 +7,14 @@ build-backend = "poetry.masonry.api"
 name = "darkseer"
 version = "0.1.0"
 description = "lorem ipsum.."
-authors = ["SupahNoob <cooper.b.nicholas@gmail.com>"]
+authors = ["boonhapus <me@boonhap.us>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-sqlalchemy = "^1.3.16"
+sqlalchemy = "^1.4"
 pydantic = "^1.4"
 httpx = "^0.12.1"
 psycopg2 = "^2.8.5"
-altair = "^4.1.0"
-databases = "^0.4.1"
 asyncpg = "^0.22.0"
 rich = "^9.10.0"
 typer = "^0.3.2"
@@ -26,6 +24,8 @@ aiofiles = "^0.6.0"
 [tool.poetry.dev-dependencies]
 ipykernel = "^5.2.0"
 
+[tool.poetry.scripts]
+darkseer = "scripts.cli:run"
 
 [tool.ward]
 path = ["tests"]
