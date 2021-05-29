@@ -4,9 +4,25 @@ from typing import List
 from darkseer.db import Database
 from typer import Argument as A_, Option as O_
 import typer
+import click
 
 from ._async import _coro
-from ._ux import RichGroup, RichCommand
+from ._ux import console, RichGroup, RichCommand
+
+
+def show_full_help(show: bool):
+    """
+    """
+    if not show:
+        return
+
+    ctx = click.get_current_context()
+
+    for param in ctx.command.params:
+        param.hidden = False
+
+    console.print(ctx.get_help())
+    raise typer.Exit()
 
 
 def db_options(f):
@@ -20,23 +36,30 @@ def db_options(f):
     param_info = {
         'echo': {
             'type': bool,
-            'arg': O_(False, '--echo', help='~! print database debug text')
+            'arg': O_(False, '--echo', help='~! Print database debug text.')
         },
         'host': {
             'type': str,
-            'arg': O_(..., help='~! network resource where darkseer database lives', prompt=True)
+            'arg': O_(..., help='~! URL where darkseer database lives.', prompt=True)
         },
         'port': {
             'type': int,
-            'arg': O_(None, help='~! optional, database port', hidden=True)
+            'arg': O_(None, help='~! Database port.', hidden=True)
         },
         'username': {
             'type': str,
-            'arg': O_(None, help='~! authentication username', hidden=True)
+            'arg': O_(None, help='~! Authentication username.', hidden=True)
         },
         'password': {
             'type': str,
-            'arg': O_(None, help='~! authentication password', hidden=True)
+            'arg': O_(None, help='~! Authentication password.', hidden=True)
+        },
+        'helpfull': {
+            'type': bool,
+            'arg': O_(
+                False, '--helpfull', help='Show the full help message and exit.',
+                callback=show_full_help, is_eager=True, show_default=False
+            )
         }
     }
 
@@ -59,7 +82,7 @@ app = typer.Typer(
 )
 
 
-@app.command()
+@app.command(cls=RichCommand)
 @db_options
 @_coro
 async def interactive(
@@ -76,7 +99,7 @@ async def interactive(
 @db_options
 @_coro
 async def create(
-    tables: List[str]=O_(None, help='subset of tables to create'),
+    tables: List[str]=O_(None, help='subset [yellow]of tables[/] to create'),
     **db_options
 ):
     """
@@ -88,7 +111,7 @@ async def create(
         pass
 
 
-@app.command()
+@app.command(cls=RichCommand)
 @db_options
 @_coro
 async def drop(
@@ -104,7 +127,7 @@ async def drop(
         pass
 
 
-@app.command()
+@app.command(cls=RichCommand)
 @db_options
 @_coro
 async def truncate(
@@ -120,7 +143,7 @@ async def truncate(
         pass
 
 
-@app.command()
+@app.command(cls=RichCommand)
 @db_options
 @_coro
 async def export(
