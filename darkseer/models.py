@@ -66,13 +66,94 @@ class Hero(Base):
     __tablename__ = 'hero'
 
     hero_id = Column(Integer, primary_key=True, autoincrement=False)
-    # patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
-    hero_display_name = Column(String)
     hero_internal_name = Column(String)
 
     def __str__(self):
         name = self.display_name
         return f'<[m] Hero {name}>'
+
+
+class HeroHistory(Base):
+    __tablename__ = 'hero_history'
+
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True, autoincrement=False)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    hero_display_name = Column(String)
+
+    def __str__(self):
+        name = self.display_name
+        patch = self.game_version.patch
+        return f'<[m] Hero {name} ({patch})>'
+
+
+class NPC(Base):
+    __tablename__ = 'non_player_character'
+
+    npc_id = Column(Integer, primary_key=True, autoincrement=False)
+    npc_name = Column(String)
+
+    def __str__(self):
+        name = self.npc_name
+        return f'<[m] NPC {name}>'
+
+
+class NPCHistory(Base):
+    __tablename__ = 'non_player_character_history'
+
+    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), primary_key=True, autoincrement=False)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+
+    def __str__(self):
+        name = self.npc.npc_name
+        patch = self.game_version.patch
+        return f'<[m] NPC {name} ({patch})>'
+
+
+class Item(Base):
+    __tablename__ = 'item'
+
+    item_id = Column(Integer, primary_key=True, autoincrement=False)
+    item_internal_name = Column(String)
+
+    def __str__(self):
+        name = self.item_internal_name
+        return f'<[m] Item {name}>'
+
+
+class ItemHistory(Base):
+    __tablename__ = 'item_history'
+
+    item_id = Column(Integer, ForeignKey('item.item_id'), primary_key=True, autoincrement=False)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    item_display_name = Column(String)
+
+    def __str__(self):
+        name = self.display_name
+        patch = self.game_version.patch
+        return f'<[m] NPC {name} ({patch})>'
+
+
+class Ability(Base):
+    __tablename__ = 'ability'
+
+    ability_id = Column(Integer, primary_key=True, autoincrement=False)
+    ability_internal_name = Column(String)
+
+    def __str__(self):
+        name = self.ability_internal_name
+        return f'<[m] Ability {name}>'
+
+
+class AbilityHistory(Base):
+    __tablename__ = 'ability_history'
+
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True, autoincrement=False)
+    patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+
+    def __str__(self):
+        name = self.ability.ability_internal_name
+        patch = self.game_version.patch
+        return f'<[m] Ability {name} ({patch})>'
 
 
 class Match(Base):
@@ -102,7 +183,7 @@ class Match(Base):
 class MatchPlayer(Base):
     __tablename__ = 'match_player'
 
-    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     steam_id = Column(BigInteger, ForeignKey('account.steam_id'))
     slot = Column(Integer)
@@ -124,11 +205,6 @@ class HeroMovement(Base):
     x = Column(Integer)
     y = Column(Integer)
 
-    __table_args__ = (
-        ForeignKeyConstraint([match_id, hero_id], [MatchPlayer.match_id, MatchPlayer.hero_id]),
-        {}
-    )
-
     def __str__(self):
         hero = self.hero.display_name
         time = self.time
@@ -140,7 +216,7 @@ class HeroMovement(Base):
 class MatchDraft(Base):
     __tablename__ = 'match_draft'
 
-    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     draft_type = Column(String, primary_key=True, comment='ban vote, ban, pick')
     draft_order = Column(Integer)
@@ -153,45 +229,45 @@ class MatchDraft(Base):
         return f'<[m] Draft: {type}{no} for hero={self.hero_id}>'
 
 
-# class MatchEvent(Base):
-#     """
+class MatchEvent(Base):
+    """
 
-#     Types:
-#     - Ability Learn
-#     - Ability Use
-#     - Item Purchase
-#     - Item Use
-#     - Kill
-#     - Death
-#     - Assist
-#     - Creep Kill
-#     - Creep Deny
-#     - Gold Change
-#     - Experience Change
-#     - Buyback
-#     - Courier Death
-#     - Ward Placed
-#     - Ward Destroyed
-#     - Roshan Death
-#     - Building Death
-#     - Rune Spawn
-#     - Rune Taken
-#     """
-#     __tablename__ = 'match_event'
+    Types:
+    - Ability Learn
+    - Ability Use
+    - Item Purchase
+    - Item Use
+    - Kill
+    - Death
+    - Assist
+    - Creep Kill
+    - Creep Deny
+    - Gold Change
+    - Experience Change
+    - Buyback
+    - Courier Death
+    - Ward Placed
+    - Ward Destroyed
+    - Roshan Death
+    - Building Death
+    - Rune Spawn
+    - Rune Taken
+    """
+    __tablename__ = 'match_event'
 
-#     id = Column(Integer, primary_key=True)
-#     match_id = Column(Integer, ForeignKey('match.match_id'))
-#     event_type = Column(String)
-#     hero_id = Column(Integer, ForeignKey('hero.hero_id'), nullable=True)
-#     npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), nullable=True)
-#     ability_id = Column(Integer, ForeignKey('ability.ability_id'), nullable=True)
-#     item_id = Column(Integer, ForeignKey('item.item_id'), nullable=True)
-#     time = Column(Integer)
-#     x = Column(Integer)
-#     y = Column(Integer)
-#     extra_data = Column(JSON)
+    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    id = Column(Integer, primary_key=True)
+    event_type = Column(String)
+    time = Column(Integer)
+    x = Column(Integer)
+    y = Column(Integer)
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), nullable=True)
+    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), nullable=True)
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'), nullable=True)
+    item_id = Column(Integer, ForeignKey('item.item_id'), nullable=True)
+    extra_data = Column(JSON)
 
-#     def __str__(self):
-#         name = self.event_type
-#         time = self.time
-#         return f'<[m] MatchEvent {name} @ {time} in {self.match_id}>'
+    def __str__(self):
+        name = self.event_type
+        time = self.time
+        return f'<[m] MatchEvent {name} @ {time} in {self.match_id}>'
