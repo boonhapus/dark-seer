@@ -108,7 +108,6 @@ class MatchPlayer(Base):
     slot = Column(Integer)
     party_id = Column(Integer)
     is_leaver = Column(Integer)
-    is_random = Column(Integer)
 
     def __str__(self):
         hero_name = self.hero.display_name
@@ -145,6 +144,7 @@ class MatchDraft(Base):
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     draft_type = Column(String, primary_key=True, comment='ban vote, ban, pick')
     draft_order = Column(Integer)
+    is_random = Column(Integer)
     by_steam_id = Column(Integer, ForeignKey('account.steam_id'), nullable=True)
 
     def __str__(self):
