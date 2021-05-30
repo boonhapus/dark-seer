@@ -1,12 +1,14 @@
 from inspect import Signature, Parameter
 from typing import List, Tuple
 import itertools as it
+import pathlib
 
 from darkseer.database import Database
 from darkseer.models import *
 from typer import Argument as A_, Option as O_
 from click import Context, Parameter as Param
 import typer
+import sqlalchemy as sa
 
 from ._async import _coro
 from ._ux import console, RichGroup, RichCommand
@@ -163,7 +165,7 @@ async def truncate(
 
     async with db.session() as sess:
         for table in tables:
-            console.print(f'[yellow]truncating[/]: {table.name}')
+            console.print(f'[warning]truncating[/]: {table.name}')
             await sess.execute(table.delete())
 
 
@@ -171,8 +173,9 @@ async def truncate(
 @db_options
 @_coro
 async def export(
-    table: str=A_(..., help='Table to export'),
-    where: str=O_(None, help='Optional filter clause to add to the data pull'),
+    tablename: str=A_(..., help='Table to export.'),
+    save_path: pathlib.Path=A_(..., help='Directory to save ouput.'),
+    where: str=O_(None, help='Optional filter clause to add to the data pull.'),
     **db_options
 ):
     """
@@ -180,8 +183,20 @@ async def export(
     """
     db = Database(**db_options)
 
+    try:
+        table = next((t for t in db.metadata.sorted_tables if t.name == tablename))
+    except StopIteration:
+        console.print(f'[error]table \'{tablename}\' does not exist!')
+        raise typer.Exit(-1)
+
     async with db.session() as sess:
-        pass
+        q = sa.select(table)
+
+        if where is not None:
+            q = q.filter(sa.text(where))
+
+        rows = await sess.execute(q)
+        print([r for r in rows])
 
 
 @app.command(cls=RichCommand, hidden=True)
