@@ -24,6 +24,5 @@ def _coro(f):
             return loop.run_until_complete(f(*a, **kw))
         finally:
             loop.stop()
-            asyncio.set_event_loop(None)
 
     return wrapper

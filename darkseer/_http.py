@@ -126,7 +126,7 @@ class AsyncThrottledClient:
     def __init__(self, name: str, rate_limiter: AsyncRateLimiter=None, **opts):
         _default_opts = {
             'headers': {
-                'user-agent': f'DarkSeerBot/{__version__} (+github: dark-seer)'
+                'user-agent': f'DarkSeer/{__version__} (+github: dark-seer)'
             }
         }
 

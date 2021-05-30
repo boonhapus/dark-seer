@@ -13,6 +13,7 @@ class Account(Base):
 
     steam_id = Column(BigInteger, primary_key=True, autoincrement=False)
     steam_name = Column(String)
+    discord_id = Column(BigInteger, nullable=True)
 
     def __str__(self):
         name = self.steam_name
