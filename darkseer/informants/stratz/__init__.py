@@ -1,1 +1,1 @@
-from .api import StratzClient
+from .client import Stratz

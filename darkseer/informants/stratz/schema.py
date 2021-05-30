@@ -1,51 +1,38 @@
-from datetime import datetime
+import datetime as dt
 
-from pydantic import validator, root_validator
+from pydantic import BaseModel, validator
 
-from darkseer.schema import GameVersion, Match
-
-
-class GameVersion(GameVersion):
-    """
-    Transformer for the STRATZ repr of a GameVersion.
-    """
-    @validator('release_date', pre=True)
-    def as_utc(cls, v: int):
-        """
-        Enforce UTC timezone on all incoming timestamps.
-        """
-        return datetime.utcfromtimestamp(v)
+from darkseer.models import GameVersion as GameVersion_
 
 
-class Match(Match):
-    """
-    Transformer for the STRATZ repr of a Match.
-    """
-    @root_validator(pre=True)
-    def _prepare_stats(cls, data: dict) -> dict:
-        data['draft'] = []
+class Base(BaseModel):
 
-        # handle reformatting of MatchDraft
-        for draft_item in data['stats']['draft']:
+    class Config:
+        orm_mode = True
 
-            if draft_item['is_pick']:
-                hero_id = draft_item['picked_hero_id']
-                draft_type = 'pick'
-            else:
-                hero_id = draft_item['banned_hero_id']
-                draft_type = 'ban' if draft_item['banned'] else 'ban vote'
+    def to_orm(cls):
+        return cls.orm_model(**cls.dict())
 
-            try:
-                steam_id = data['players'][draft_item['by_player_index']]['steam_id']
-            except TypeError:
-                steam_id = None
 
-            data['draft'].append({
-                'match_id': data['match_id'],
-                'hero_id': hero_id,
-                'draft_type': draft_type,
-                'draft_order': draft_item['draft_order'],
-                'by_steam_id': steam_id
-            })
+class GameVersion(Base):
+    patch_id: int
+    patch: str
+    release_dt: dt.datetime
 
-        return data
+    @property
+    def orm_model(self):
+        return GameVersion_
+
+    @validator('release_dt', pre=True)
+    def ensure_utc(cls, ts: int) -> dt.datetime:
+        return dt.datetime.utcfromtimestamp(ts)
+
+
+# class Hero(BaseModel):
+#     patch_id: int
+#     patch: str
+#     release_dt: dt.datetime
+
+#     @validator('release_dt', pre=True)
+#     def ensure_utc(cls, ts: int) -> dt.datetime:
+#         return dt.datetime.utcfromtimestamp(ts)

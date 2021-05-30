@@ -29,6 +29,15 @@ class Stratz(RateLimitedHTTPClient):
 
     async def query(self, q: str, **variables) -> httpx.Request:
         """
+        Perform a GraphQL query.
+
+        Parameters
+        ----------
+        q : str
+          graphql query to send to Stratz
+
+        **variables
+          graphql variables to substitute
         """
         r = await self.post('/graphql', data={'query': q}, params=variables)
         r.raise_for_status()
