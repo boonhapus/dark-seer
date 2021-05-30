@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import List
 import logging
 
 from sqlalchemy.schema import MetaData
@@ -48,6 +49,13 @@ class Database:
         Public access to the Metadata object.
         """
         return self._metadata
+
+    @property
+    def tables(self) -> List[str]:
+        """
+        Public access to the Tables object.
+        """
+        return self._metadata.tables
 
     @asynccontextmanager
     async def session(self, **kwargs) -> AsyncSession:
