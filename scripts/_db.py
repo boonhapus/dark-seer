@@ -73,12 +73,6 @@ def db_options(f):
     return f
 
 
-app = typer.Typer(
-    help='Perform database functions.',
-    cls=RichGroup
-)
-
-
 def _csv(ctx: Context, param: Param, value: Tuple[str]) -> List[str]:
     """
     Convert arguments to a list of strings.
@@ -92,6 +86,9 @@ def _csv(ctx: Context, param: Param, value: Tuple[str]) -> List[str]:
       ['table1', 'table2', 'table3']
     """
     return list(it.chain.from_iterable([v.split(',') for v in value]))
+
+
+app = typer.Typer(help='Perform database functions.', cls=RichGroup)
 
 
 @app.command(cls=RichCommand)
