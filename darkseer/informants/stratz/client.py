@@ -3,7 +3,10 @@ from typing import List
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient
-from .schema import GameVersion, Tournament, CompetitiveTeam
+from .schema import (
+    GameVersion, Tournament, CompetitiveTeam, Match,
+    Hero, HeroHistory, Item, ItemHistory
+)
 
 
 class Stratz(RateLimitedHTTPClient):
@@ -127,22 +130,61 @@ class Stratz(RateLimitedHTTPClient):
         data = resp.json()['data']
         return [CompetitiveTeam(**v) for v in data['competitive_teams']]
 
-    async def heroes(self, game_version_id: int=1) -> List[Hero]:
+    async def heroes(self, *, patch_id: int=69) -> List[HeroHistory]:
         """
+        Return a list of Heroes.
         """
         q = """
         query Heroes {
           constants {
-            heroes(gameVersionId: 1, language: ENGLISH) {
+            heroes (gameVersionId: $patch_id, language: ENGLISH) {
               hero_id: id
-              internal_name: shortName
-              stats
+              hero_internal_name: shortName
+              hero_display_name: displayName
+              patch_id: gameVersionId
+              stats {
+                primary_attribute: primaryAttribute
+                mana_regen_base: mpRegen
+                strength_base: strengthBase
+                strength_gain: strengthGain
+                agility_base: agilityBase
+                agility_gain: agilityGain
+                intelligence_base: intelligenceBase
+                intelligence_gain: intelligenceGain
+                attack_type: attackType
+                attack_range: attackRange
+                attack_animation: attackAnimationPoint
+                base_attack_time: attackRate
+                is_captains_mode: cMEnabled
+                movespeed: moveSpeed
+                turn_rate: moveTurnRate
+                armor_base: startingArmor
+                magic_armor_base: startingMagicArmor
+                damage_base_max: startingDamageMax
+                damage_base_min: startingDamageMin
+                vision_range_day: visionDaytimeRange
+                vision_range_night: visionNighttimeRange
+
+                # true for dire, false for radiant
+                is_radiant: team
+              }
             }
           }
         }
         """
+        resp = await self.query(q, patch_id=patch_id)
+        heroes = []
 
+        for hero in resp.json()['data']['constants']['heroes']:
+            if hero['stats'] is None:
+                continue
 
+            data = {**hero, **hero['stats']}
+            data.pop('stats')
+
+            heroes.append(data)
+
+        return [HeroHistory(**v) for v in heroes]
 
     def __repr__(self) -> str:
         return f'<StratzClient {self.rate}r/s>'

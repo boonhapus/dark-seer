@@ -64,26 +64,50 @@ class Hero(Base):
 class HeroHistory(Base):
     hero_id: int
     patch_id: int
+    hero_internal_name: str
     hero_display_name: str
     primary_attribute: str
     mana_regen_base: float
     strength_base: float
-    strength_gain: float
+    strength_gain: Optional[float]
     agility_base: float
     agility_gain: float
     intelligence_base: float
     intelligence_gain: float
-    attackAnimationPoint: float
+    base_attack_time: float
     attack_range: int
-    attack_rate: float
+    base_attack_time: float
     attack_type: str
     is_captains_mode: bool
     movespeed: int
     turn_rate: float
-    starting_armor: float
-    starting_magic_armor: float
-    starting_damage_max: int
-    starting_damage_min: int
-    faction: str
+    armor_base: Optional[float]
+    magic_armor_base: float
+    damage_base_max: int
+    damage_base_min: int
+    is_radiant: bool
     vision_range_day: int
     vision_range_night: int
+
+    @validator('is_radiant', pre=True)
+    def flip_is_dire(cls, is_dire: bool) -> bool:
+        return not is_dire
+
+    @validator(
+        'mana_regen_base', 'strength_base', 'strength_gain', 'agility_base',
+        'agility_gain', 'intelligence_base', 'intelligence_gain', 'base_attack_time',
+        'base_attack_time', 'turn_rate', 'armor_base', 'magic_armor_base',
+        pre=True
+    )
+    def float_two_decimals(cls, value: float) -> float:
+        if value is None:
+            return None
+        return float(f'{value:.2f}')
+
+    def to_hero(self) -> Hero:
+        """
+        Convert this schema to a Hero.
+
+        Useful for SCD4 activites.
+        """
+        return Hero(hero_id=self.hero_id, hero_internal_name=self.hero_internal_name)
