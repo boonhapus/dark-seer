@@ -151,3 +151,66 @@ class ItemHistory(Base):
         Useful for SCD4 activites.
         """
         return Item(item_id=self.item_id, item_internal_name=self.item_internal_name)
+
+
+class NPC(Base):
+    npc_id: int
+    npc_internal_name: str
+
+
+class NPCHistory(Base):
+    npc_id: int
+    patch_id: int
+    npc_internal_name: str
+    combat_class_attack: str
+    combat_class_defend: str
+    is_ancient: bool
+    is_neutral: bool
+    health: int
+    mana: int
+    team: str
+    unit_relationship_class: str
+
+    @validator('team', pre=True)
+    def translate_team(cls, value: str) -> str:
+        mapping = {'goodguys': 'radiant', 'badguys': 'dire', 'neutrals': 'neutral'}
+        return mapping.get(value.lower())
+
+    def to_npc(self) -> Item:
+        """
+        Convert this schema to an NPC.
+
+        Useful for SCD4 activites.
+        """
+        return NPC(npc_id=self.npc_id, npc_internal_name=self.npc_internal_name)
+
+
+class Ability(Base):
+    ability_id: int
+    ability_internal_name: str
+
+
+class AbilityHistory(Base):
+    ability_id: int
+    patch_id: int
+    ability_internal_name: str
+    ability_display_name: Optional[str]
+    is_talent: bool
+    is_ultimate: bool
+    has_scepter_upgrade: Optional[bool]
+    is_scepter_upgrade: Optional[bool]
+    is_aghanims_shard: Optional[bool]
+    required_level: Optional[int]
+    ability_type: Optional[int]
+    ability_damage_type: Optional[int]
+    unit_target_flags: Optional[int]
+    unit_target_team: Optional[int]
+    unit_target_type: Optional[int]
+
+    def to_ability(self) -> Item:
+        """
+        Convert this schema to an NPC.
+
+        Useful for SCD4 activites.
+        """
+        return Ability(ability_id=self.ability_id, ability_internal_name=self.ability_internal_name)

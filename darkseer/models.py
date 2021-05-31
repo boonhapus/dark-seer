@@ -115,7 +115,7 @@ class NPC(Base):
     __tablename__ = 'non_player_character'
 
     npc_id = Column(Integer, primary_key=True, autoincrement=False)
-    npc_name = Column(String)
+    npc_internal_name = Column(String)
 
     def __str__(self):
         name = self.npc_name
@@ -127,6 +127,15 @@ class NPCHistory(Base):
 
     npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), primary_key=True, autoincrement=False)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    npc_internal_name = Column(String)
+    combat_class_attack = Column(String)
+    combat_class_defend = Column(String)
+    is_ancient = Column(Boolean)
+    is_neutral = Column(Boolean)
+    health = Column(Integer)
+    mana = Column(Integer)
+    team = Column(String)
+    unit_relationship_class = Column(String)
 
     def __str__(self):
         name = self.npc.npc_name
@@ -182,6 +191,19 @@ class AbilityHistory(Base):
 
     ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True, autoincrement=False)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    ability_internal_name = Column(String)
+    ability_display_name = Column(String)
+    is_talent = Column(Boolean)
+    has_scepter_upgrade = Column(Boolean)
+    is_scepter_upgrade = Column(Boolean)
+    is_aghanims_shard = Column(Boolean)
+    is_ultimate = Column(Boolean)
+    required_level = Column(Integer)
+    ability_type = Column(Integer)
+    ability_damage_type = Column(Integer)
+    unit_target_flags = Column(Integer)
+    unit_target_team = Column(Integer)
+    unit_target_type = Column(Integer)
 
     def __str__(self):
         name = self.ability.ability_internal_name

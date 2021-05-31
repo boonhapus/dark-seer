@@ -5,7 +5,7 @@ import httpx
 from darkseer.util import RateLimitedHTTPClient
 from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match,
-    HeroHistory, ItemHistory
+    HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
 
 
@@ -222,6 +222,93 @@ class Stratz(RateLimitedHTTPClient):
             items.append(data)
 
         return [ItemHistory(**v) for v in items]
+
+    async def npcs(self, *, patch_id=69) -> List[NPCHistory]:
+        """
+        Return a list of NPCs.
+        """
+        q = """
+        query NPCs {
+          constants {
+            npcs (gameVersionId: $patch_id) {
+              npc_id: id
+              npc_internal_name: name
+              stat {
+                combat_class_attack: combatClassAttack
+                combat_class_defend: combatClassDefend
+                is_ancient: isAncient
+                is_neutral: isNeutralUnitType
+                health: statusHealth
+                mana: statusMana
+                team: teamName
+                unit_relationship_class: unitRelationshipClass
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        npcs = []
+
+        for npc in resp.json()['data']['constants']['npcs']:
+            if npc['stat'] is None:
+                continue
+
+            data = {'patch_id': patch_id, **npc, **npc['stat']}
+            data.pop('stat')
+            npcs.append(data)
+
+        return [NPCHistory(**v) for v in npcs]
+
+    async def abilities(self, *, patch_id=69) -> List[AbilityHistory]:
+        """
+        Return a list of Abilities.
+        """
+        q = """
+        query Abilities {
+          constants {
+            abilities (gameVersionId: $patch_id, language: ENGLISH) {
+              ability_id: id
+              ability_internal_name: name
+              is_talent: isTalent
+              language {
+                ability_display_name: displayName
+              }
+              stat {
+                has_scepter_upgrade: hasScepterUpgrade
+                is_scepter_upgrade: isGrantedByScepter
+                is_aghanims_shard: isGrantedByShard
+                is_ultimate: isUltimate
+                required_level: requiredLevel
+                ability_type: type
+                ability_damage_type: unitDamageType
+                unit_target_flags: unitTargetFlags
+                unit_target_team: unitTargetTeam
+                unit_target_type: unitTargetType
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        abilities = []
+
+        for ability in resp.json()['data']['constants']['abilities']:
+            if ability['stat'] is None:
+                continue
+            if ability['ability_internal_name'] is None:
+                continue
+
+            data = {'patch_id': patch_id, **ability, **ability['stat']}
+
+            if ability['language'] is not None:
+                data = {**data, **ability['language']}
+
+            data.pop('language')
+            data.pop('stat')
+            abilities.append(data)
+
+        return [AbilityHistory(**v) for v in abilities]
 
     # async def matches(self, match_ids: List[int]) -> List[Match]:
     #     """
