@@ -130,6 +130,7 @@ dmypy.json
 
 
 # custom ignores
+*.ignore-*
 *.sublime-project
 *.sublime-workspace
 secrets.py
