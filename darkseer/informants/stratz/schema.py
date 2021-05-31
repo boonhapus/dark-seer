@@ -3,10 +3,7 @@ import datetime as dt
 
 from pydantic import BaseModel, validator
 
-from darkseer.models import (
-    GameVersion as GameVersion_,
-    Tournament as Tournament_
-)
+from darkseer.models import GameVersion as GameVersion_
 
 
 class Base(BaseModel):
@@ -40,10 +37,6 @@ class Tournament(Base):
     tier: str
     prize_pool: int
 
-    @property
-    def orm_model(self):
-        return Tournament_
-
     @validator('tier')
     def str_lower(cls, string: str) -> str:
         return f'{string}'.lower()
@@ -54,6 +47,26 @@ class Tournament(Base):
             return None
 
         return dt.datetime.utcfromtimestamp(ts)
+
+
+class CompetitiveTeam(Base):
+    team_id: int
+    team_name: str
+    team_tag: str
+    country_code: str
+    created: dt.datetime
+
+    @validator('created', pre=True)
+    def ensure_utc(cls, ts: int) -> dt.datetime:
+        if ts is None:
+            return None
+
+        return dt.datetime.utcfromtimestamp(ts)
+
+
+class Match(Base):
+    """
+    """
 
 
 class Hero(Base):

@@ -112,7 +112,7 @@ class Stratz(RateLimitedHTTPClient):
 
         return [Tournament(**v) for v in leagues]
 
-    async def teams(self, team_ids: List[int]) -> List[CompetitiveTeam]:
+    async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:
         """
         Return a list of competitive teams.
         """

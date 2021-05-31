@@ -28,7 +28,10 @@ app.add_typer(stratz_app, name='stratz')
 async def patch(
     patch: str=O_(None, help='Specific patch to get data for.'),
     save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
-    token: str=O_(None, help='STRATZ Bearer token for elevated requests permission'),
+    token: str=O_(
+        None, help='STRATZ Bearer token for elevated requests permission.',
+        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
+    ),
     **db_options
 ):
     """
@@ -53,7 +56,10 @@ async def patch(
 async def tournament(
     league_id: str=O_(None, help='Specific league to get data for.'),
     save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
-    token: str=O_(None, help='STRATZ Bearer token for elevated requests permission'),
+    token: str=O_(
+        None, help='STRATZ Bearer token for elevated requests permission.',
+        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
+    ),
     **db_options
 ):
     """
