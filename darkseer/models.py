@@ -150,7 +150,15 @@ class ItemHistory(Base):
 
     item_id = Column(Integer, ForeignKey('item.item_id'), primary_key=True, autoincrement=False)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
+    item_internal_name = Column(String)
     item_display_name = Column(String)
+    cost = Column(Integer)
+    is_recipe = Column(Boolean)
+    is_side_shop = Column(Boolean)
+    quality = Column(String, nullable=True)
+    unit_target_flags = Column(Integer, nullable=True)
+    unit_target_team = Column(Integer, nullable=True)
+    unit_target_type = Column(Integer, nullable=True)
 
     def __str__(self):
         name = self.display_name

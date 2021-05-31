@@ -124,3 +124,30 @@ class HeroHistory(Base):
         Useful for SCD4 activites.
         """
         return Hero(hero_id=self.hero_id, hero_internal_name=self.hero_internal_name)
+
+
+class Item(Base):
+    item_id: int
+    item_internal_name: str
+
+
+class ItemHistory(Base):
+    item_id: int
+    patch_id: int
+    item_internal_name: str
+    item_display_name: str
+    cost: Optional[int]
+    is_recipe: bool
+    is_side_shop: bool
+    quality: Optional[str]
+    unit_target_flags: Optional[int]
+    unit_target_team: Optional[int]
+    unit_target_type: Optional[int]
+
+    def to_item(self) -> Item:
+        """
+        Convert this schema to an Item.
+
+        Useful for SCD4 activites.
+        """
+        return Item(item_id=self.item_id, item_internal_name=self.item_internal_name)

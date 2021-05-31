@@ -3,7 +3,7 @@ import pathlib
 from darkseer.informants import Stratz
 from darkseer.database import Database
 from darkseer.models import (
-    GameVersion, Tournament, Hero, HeroHistory
+    GameVersion, Tournament, Hero, HeroHistory, Item, ItemHistory
 )
 from darkseer.util import upsert
 from typer import Argument as A_, Option as O_
@@ -135,3 +135,63 @@ async def hero(
             stmt = upsert(HeroHistory).values([v.dict() for v in chunk])
             await sess.execute(stmt)
 
+
+@stratz_app.command(cls=RichCommand)
+@db_options
+@_coro
+async def item(
+    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
+    since: bool=O_(False, '--since', help='Get data on all patches since.'),
+    item_id: str=O_(None, help='Specific Hero to get data for.'),
+    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
+    token: str=O_(
+        None, help='STRATZ Bearer token for elevated requests permission.',
+        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
+    ),
+    **db_options
+):
+    """
+    Collect Item history data.
+    """
+    db = Database(**db_options)
+
+    async with db.session() as sess:
+        stmt = sa.select(GameVersion.patch_id, GameVersion.patch)
+
+        if patch is None:
+            patch = '7.00'
+            since = True
+
+        if since:
+            stmt = stmt.filter(GameVersion.patch >= patch)
+        else:
+            stmt = stmt.filter(GameVersion.patch == patch)
+
+        rows = await sess.execute(stmt)
+        patches = [r[0] for r in rows]
+
+    items = []
+    history = []
+
+    async with Stratz(bearer_token=token) as api:
+        with console.status('collecting data on patch..') as status:
+            for id_, patch in patches:
+                status.update(f'collecting data on patch.. {patch}')
+                r = await api.items(patch_id=patch)
+                history.extend(r)
+                items.extend([
+                    schema.to_item()
+                    for schema in r
+                    if schema.item_id not in [i.item_id for i in items]
+                ])
+
+    if save_path is not None:
+        to_csv(save_path / 'heroes.csv', data=[v.dict() for v in r])
+
+    async with db.session() as sess:
+        stmt = upsert(Item).values([v.dict() for v in items])
+        await sess.execute(stmt)
+
+        for chunk in chunks(history, n=2000):
+            stmt = upsert(ItemHistory).values([v.dict() for v in chunk])
+            await sess.execute(stmt)

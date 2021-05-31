@@ -186,5 +186,77 @@ class Stratz(RateLimitedHTTPClient):
 
         return [HeroHistory(**v) for v in heroes]
 
+    async def items(self, *, patch_id: int=69) -> List[ItemHistory]:
+        """
+        Return a list of Items.
+        """
+        q = """
+        query Items {
+          constants {
+            items (gameVersionId: $patch_id, language: ENGLISH) {
+              item_id: id
+              item_internal_name: shortName
+              item_display_name: displayName
+              stat {
+                cost
+                is_recipe: isRecipe
+                is_side_shop: isSideShop
+                quality
+                unit_target_flags: unitTargetFlags
+                unit_target_team: unitTargetTeam
+                unit_target_type: unitTargetType
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        items = []
+
+        for item in resp.json()['data']['constants']['items']:
+            if item['stat'] is None:
+                continue
+
+            data = {'patch_id': patch_id, **item, **item['stat']}
+            data.pop('stat')
+            items.append(data)
+
+        return [ItemHistory(**v) for v in items]
+
+    # async def matches(self, match_ids: List[int]) -> List[Match]:
+    #     """
+    #     """
+        # {
+        #   matches(ids: [5318105278]) {
+        #     match_id: id
+        #     region: regionId
+        #     lobby_type: lobbyType
+        #     game_mode: gameMode
+        #     patch_id: gameVersionId
+        #     start_datetime: startDateTime
+        #     duration: durationSeconds
+        #     is_radiant_win: didRadiantWin
+        #     is_stats: isStats
+        #     league_id: leagueId
+        #     series_id: seriesId
+        #     radiant_team_id: radiantTeamId
+        #     dire_team_id: direTeamId
+        #     rank: actualRank
+        #     players {
+        #       steam_id: steamAccountId
+        #     }
+        #     stats {
+        #       draft: pickBans {
+        #         is_pick: isPick
+        #         banned: wasBannedSuccessfully
+        #         by_player_index: playerIndex
+        #         picked_hero_id: heroId
+        #         banned_hero_id: bannedHeroId
+        #         draft_order: order
+        #       }
+        #     }
+        #   }
+        # }
+
     def __repr__(self) -> str:
         return f'<StratzClient {self.rate}r/s>'
