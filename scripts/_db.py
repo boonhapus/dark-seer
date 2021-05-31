@@ -88,7 +88,12 @@ def _csv(ctx: Context, param: Param, value: Tuple[str]) -> List[str]:
     return list(it.chain.from_iterable([v.split(',') for v in value]))
 
 
-app = typer.Typer(help='Perform database functions.', cls=RichGroup)
+app = typer.Typer(
+    help="""
+    Interact with the database backend.
+    """,
+    cls=RichGroup
+)
 
 
 @app.command(cls=RichCommand)

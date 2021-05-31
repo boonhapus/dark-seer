@@ -16,7 +16,12 @@ from ._db import db_options
 from ._ux import console, RichGroup, RichCommand
 
 
-app = typer.Typer(help='Perform data functions.', cls=RichGroup)
+app = typer.Typer(
+    help="""
+    Collect data from a number of different informants.
+    """,
+    cls=RichGroup
+)
 
 stratz_app = typer.Typer(help='Collect data from Stratz.', cls=RichGroup)
 app.add_typer(stratz_app, name='stratz')
@@ -35,12 +40,13 @@ async def patch(
     **db_options
 ):
     """
-
+    Collect Game Version data.
     """
     db = Database(**db_options)
 
     async with Stratz(bearer_token=token) as api:
-        r = await api.patches()
+        with console.status('collecting data on patches..'):
+            r = await api.patches()
 
     if save_path is not None:
         to_csv(save_path / 'patches.csv', data=[v.dict() for v in r])
@@ -63,12 +69,13 @@ async def tournament(
     **db_options
 ):
     """
-
+    Collect Tournament data.
     """
     db = Database(**db_options)
 
     async with Stratz(bearer_token=token) as api:
-        r = await api.tournaments()
+        with console.status('collecting data on tournaments..'):
+            r = await api.tournaments()
 
     if save_path is not None:
         to_csv(save_path / 'tournaments.csv', data=[v.dict() for v in r])
@@ -93,13 +100,12 @@ async def hero(
     **db_options
 ):
     """
-
+    Collect Hero history data.
     """
     db = Database(**db_options)
 
     async with db.session() as sess:
-        maxp = sa.select(sa.func.max(GameVersion.patch_id)).as_scalar()
-        stmt = sa.select(GameVersion.patch_id, maxp == GameVersion.patch_id)
+        stmt = sa.select(GameVersion.patch_id)
 
         if patch is None:
             patch = '7.00'
@@ -111,18 +117,22 @@ async def hero(
             stmt = stmt.filter(GameVersion.patch == patch)
 
         rows = await sess.execute(stmt)
-        patch_ids = [r for r in rows]
+        patch_ids = [r[0] for r in rows]
 
     heroes = []
     history = []
 
     async with Stratz(bearer_token=token) as api:
-        for patch, is_latest in patch_ids:
-            r = await api.heroes(patch_id=patch)
-            history.extend(r)
-
-            if is_latest:
-                heroes.extend([schema.to_hero() for schema in r])
+        with console.status('collecting data on patch..') as status:
+            for patch in patch_ids:
+                status.update(f'collecting data on patch.. {patch}')
+                r = await api.heroes(patch_id=patch)
+                history.extend(r)
+                heroes.extend([
+                    schema.to_hero()
+                    for schema in r
+                    if schema.hero_id not in [h.hero_id for h in heroes]
+                ])
 
     if save_path is not None:
         to_csv(save_path / 'heroes.csv', data=[v.dict() for v in r])

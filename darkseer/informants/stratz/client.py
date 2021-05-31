@@ -5,7 +5,7 @@ import httpx
 from darkseer.util import RateLimitedHTTPClient
 from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match,
-    Hero, HeroHistory, Item, ItemHistory
+    HeroHistory, ItemHistory
 )
 
 
