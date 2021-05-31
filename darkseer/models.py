@@ -26,7 +26,7 @@ class CompetitiveTeam(Base):
     team_id = Column(BigInteger, primary_key=True)
     team_name = Column(String)
     team_tag = Column(String)
-    country_code = Column(String)
+    country_code = Column(String, comment='this field is poorly maintained')
     created = Column(Date)
 
     def __str__(self):
@@ -41,6 +41,7 @@ class Tournament(Base):
     league_name = Column(String)
     league_start_date = Column(Date, comment='held as naive, but UTC')
     league_end_date = Column(Date, comment='held as naive, but UTC')
+    tier = Column(String, comment='dpc, minor, major, international')
     prize_pool = Column(BigInteger)
 
     def __str__(self):

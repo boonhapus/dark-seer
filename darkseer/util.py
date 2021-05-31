@@ -11,7 +11,9 @@ from ._version import __version__
 
 
 class RateLimitedHTTPClient(httpx.AsyncClient):
-
+    """
+    HTTPX client with token rate limiting.
+    """
     def __init__(
         self,
         tokens: float,
