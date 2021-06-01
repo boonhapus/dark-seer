@@ -67,6 +67,55 @@ class CompetitiveTeam(Base):
 class Match(Base):
     """
     """
+    match_id: int
+    patch_id: int
+    league_id: int
+    series_id: int
+    radiant_team_id: int
+    dire_team_id: int
+    start_datetime: int
+    winning_team: str
+    is_stats: bool
+    duration: int
+    region: str
+    lobby_type: str
+    game_mode: str
+
+    @validator('winning_team', pre=True)
+    def parse_winner(cls, is_radiant_win: bool) -> str:
+        return 'radiant' if is_radiant_win else 'dire'
+
+    @validator('region', pre=True)
+    def region_id_to_name(cls, region_id: int) -> str:
+        regions = {
+            0: 'UNDEFINED', 1: 'US West', 2: 'US East',        3: 'Europe West',
+            5: 'SE Asia',   6: 'Dubai',   7: 'Australia',      8: 'Stockholm',
+            9: 'Austria',  10: 'Brazil', 11: 'South Africa',  12: 'China',
+            13: 'China',   14: 'Chile',  15: 'Peru',          16: 'India',
+            17: 'China',   18: 'China',  19: 'Japan',         20: 'China',
+            25: 'China',   37: 'Taiwan'
+        }
+        return regions[region_id]
+
+    @validator('lobby_type', pre=True)
+    def lobby_id_to_name(cls, lobby_id: int) -> str:
+        lobby_types = {
+            0: 'Normal',           1: 'Practice',   2: 'Tournament',
+            3: 'Tutorial',         4: 'Co-op Bots', 5: 'Team Matchmaking',
+            6: 'Solo Matchmaking', 7: 'Ranked',     8: '1v1 Mid',
+            9: 'Battle Cup'
+        }
+        return lobby_types[lobby_id]
+
+    @validator('game_mode', pre=True)
+    def game_mode_to_name(cls, game_mode_id: int) -> str:
+        game_modes = {
+            0: 'Unknown',       1: 'All Pick',         2: 'Captains Mode',
+            3: 'Random Draft',  4: 'Single Draft',     5: 'All Random',
+            12: 'Least Played', 16: 'Captains Draft', 17: 'Balanced Draft',
+            22: 'All Draft'
+        }
+        return game_modes[game_mode_id]
 
 
 class Hero(Base):

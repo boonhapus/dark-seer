@@ -79,7 +79,8 @@ async def patch(
 @db_options
 @_coro
 async def tournament(
-    league_id: str=O_(None, help='Specific league to get data for.'),
+    # matches: bool=O_(False, '--matches', help='Whether or not to pull data on matches.'),
+    league_id: int=O_(None, help='Specific league to get data for.'),
     save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
@@ -94,13 +95,25 @@ async def tournament(
 
     async with Stratz(bearer_token=token) as api:
         with console.status('collecting data on tournaments..'):
-            r = await api.tournaments()
+            leagues = await api.tournaments()
+
+        # if matches:
+        #     matches = []
+
+        #     with console.status('collecting match data on ..') as status:
+        #         for league in leagues:
+        #             status.update(f'collecting match data on {league.league_name}')
+        #             r = await api.tournament_matches(league_id=league.league_id)
+        #             matches.extend(r)
 
     if save_path is not None:
-        to_csv(save_path / 'tournaments.csv', data=[v.dict() for v in r])
+        to_csv(save_path / 'tournaments.csv', data=[v.dict() for v in leagues])
+
+        # if matches:
+        #     to_csv(save_path / 'matches.csv', data=[v.dict() for v in matches])
 
     async with db.session() as sess:
-        stmt = upsert(Tournament).values([v.dict() for v in r])
+        stmt = upsert(Tournament).values([v.dict() for v in leagues])
         await sess.execute(stmt)
 
 

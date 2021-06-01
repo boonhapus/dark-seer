@@ -221,7 +221,7 @@ class Match(Base):
     dire_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'))
     start_datetime = Column(DateTime, comment='held as naive, but UTC')
     is_stats = Column(Boolean)
-    is_radiant_win = Column(Boolean)
+    winning_team = Column(String)
     duration = Column(Integer, comment='held as seconds')
     region = Column(String)
     lobby_type = Column(String)
