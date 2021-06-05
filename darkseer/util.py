@@ -129,19 +129,31 @@ class RateLimitedHTTPClient(httpx.AsyncClient):
             self.tokens = min(self.tokens + new_tokens, self.max_tokens)
             self.updated_at = now
 
+    async def request(self, *a, **kw):
+        """
+        Make a request, adjusting tokens if necessary.
+        """
+        r = await super().request(*a, **kw)
+        remaining_tokens = int(r.headers['x-ratelimit-remaining-hour']) - 10
+
+        if remaining_tokens < self.tokens:
+            self.tokens = max(0, remaining_tokens)
+
+        return r
+
     async def get(self, *a, **kw):
         """
         HTTP GET.
         """
         await self.wait_for_token()
-        return await super().get(*a, **kw)
+        return await self.request('GET', *a, **kw)
 
     async def post(self, *a, **kw):
         """
         HTTP POST.
         """
         await self.wait_for_token()
-        return await super().post(*a, **kw)
+        return await self.request('POST', *a, **kw)
 
 
 def upsert(model: sa.Table, *, constraint: List[str]=None) -> sa.sql.Insert:
