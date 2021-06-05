@@ -2,11 +2,14 @@ from typing import List
 
 import httpx
 
-from darkseer.util import RateLimitedHTTPClient
+from darkseer.util import RateLimitedHTTPClient, FileCache
 from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match,
     HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
+
+
+_cache = FileCache('C:/projects/dark-seer/scripts/cache')
 
 
 class Stratz(RateLimitedHTTPClient):
@@ -32,6 +35,7 @@ class Stratz(RateLimitedHTTPClient):
             self.tokens = 500
             self.headers.update({'authorization': f'Bearer {bearer_token}'})
 
+    @_cache.memoize
     async def query(self, q: str, **variables) -> httpx.Request:
         """
         Perform a GraphQL query.
@@ -112,54 +116,59 @@ class Stratz(RateLimitedHTTPClient):
 
         return [Tournament(**v) for v in leagues]
 
-    # async def tournament_matches(self, *, league_id: int) -> List[Match]:
-    #     """
-    #     """
-    #     q = """
-    #     query TournamentMatches {
-    #       tournament_matches: league(id: $league_id) {
-    #         matches(request: {
-    #           skip: $skip_value,
-    #           take: 50,
-    #           isParsed: true
-    #         }) {
-    #           match_id: id
-    #           patch_id: gameVersionId
-    #           league_id: leagueId
-    #           series_id: seriesId
-    #           radiant_team_id: radiantTeamId
-    #           dire_team_id: direTeamId
-    #           start_datetime: startDateTime
-    #           is_stats: isStats
-    #           duration: durationSeconds
-    #           region: regionId
-    #           lobby_type: lobbyType
-    #           game_mode: gameMode
-    #           winning_team: didRadiantWin
-    #         }
-    #       }
-    #     }
-    #     """
-    #     matches = []
-
-    #     while True:
-    #         skip = len(matches)
-    #         print(f'collecting {len(matches)} matches for {league_id}')
-    #         resp = await self.query(q, league_id=league_id, skip_value=skip)
-    #         data = resp.json()['data']
-    #         print(f'collecting {len(data)} matches')
-
-    #         for v in data['tournament_matches']:
-    #             if v not in matches:
-    #                 matches.append(v)
-
-    #         if not data['tournament_matches']:
-    #             break
-
-    #     return [Match(**v) for v in matches]
-
-    async def matches(self, *, match_id: int) -> List[Match]:
+    async def tournament_matches(self, *, league_id: int) -> List[Match]:
         """
+        """
+        q = """
+        query TournamentMatches {
+          tournament_matches: league(id: $league_id) {
+            matches(request: {
+              skip: $skip_value,
+              take: 50,
+              isParsed: true
+            }) {
+              match_id: id
+            }
+          }
+        }
+        """
+        matches = []
+        _match_ids = []
+
+        # Get all Match IDs for all tournaments.
+        while True:
+            skip = len(_match_ids)
+            resp = await self.query(q, league_id=league_id, skip_value=skip)
+            data = resp.json()['data']
+
+            for v in data['tournament_matches']['matches']:
+                if v['match_id'] not in _match_ids:
+                    _match_ids.append(v['match_id'])
+
+            if not data['tournament_matches']['matches']:
+                break
+
+        # Get all matches
+        print(f'collected {len(_match_ids)} for tournament id: {league_id}')
+
+        # return [Match(**v) for v in matches]
+
+    async def matches(self, *, match_ids: List[int]) -> List[Match]:
+        """
+        """
+        q = """
+              patch_id: gameVersionId
+              league_id: leagueId
+              series_id: seriesId
+              radiant_team_id: radiantTeamId
+              dire_team_id: direTeamId
+              start_datetime: startDateTime
+              is_stats: isStats
+              duration: durationSeconds
+              region: regionId
+              lobby_type: lobbyType
+              game_mode: gameMode
+              winning_team: didRadiantWin
         """
         # Match is a composable object.
         # Match.draft = MatchDraft

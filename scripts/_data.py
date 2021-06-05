@@ -79,7 +79,7 @@ async def patch(
 @db_options
 @_coro
 async def tournament(
-    # matches: bool=O_(False, '--matches', help='Whether or not to pull data on matches.'),
+    matches: bool=O_(False, '--matches', help='Whether or not to pull data on matches.'),
     league_id: int=O_(None, help='Specific league to get data for.'),
     save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
@@ -97,14 +97,16 @@ async def tournament(
         with console.status('collecting data on tournaments..'):
             leagues = await api.tournaments()
 
-        # if matches:
-        #     matches = []
+        if matches:
+            matches = []
 
-        #     with console.status('collecting match data on ..') as status:
-        #         for league in leagues:
-        #             status.update(f'collecting match data on {league.league_name}')
-        #             r = await api.tournament_matches(league_id=league.league_id)
-        #             matches.extend(r)
+            with console.status('collecting match data on ..') as status:
+                for league in leagues:
+                    status.update(f'collecting match data on {league.league_name}')
+                    r = await api.tournament_matches(league_id=league.league_id)
+                    # matches.extend(r)
+
+    raise typer.Exit(-1)
 
     if save_path is not None:
         to_csv(save_path / 'tournaments.csv', data=[v.dict() for v in leagues])
