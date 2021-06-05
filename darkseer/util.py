@@ -1,5 +1,7 @@
-from typing import List
+from typing import Any, List, Dict, Callable
 import asyncio
+import pathlib
+import json
 import time
 
 from sqlalchemy.dialects.postgresql import insert
@@ -8,6 +10,74 @@ import sqlalchemy as sa
 import httpx
 
 from ._version import __version__
+
+
+class _Response:
+    """
+    Dummy response object.
+    """
+    def __init__(self, r):
+        self.r = r
+
+    def json(self):
+        return self.r
+
+    def raise_for_status(self):
+        pass
+
+
+class FileCache:
+
+    def __init__(self, dir_: pathlib.Path):
+        self.dir_ = pathlib.Path(dir_)
+        self._cache = {}
+        self._latest_n = 0
+        self._load_cache()
+
+    @property
+    def cache_map(self) -> pathlib.Path:
+        return self.dir_ / 'cache_map.json'
+
+    def _load_cache(self):
+        if not self.cache_map.exists():
+            return
+
+        with self.cache_map.open('r') as j:
+            self._cache = json.load(j)
+
+        self._latest_n = max([
+            int(fp.split('.json')[0][-1])
+            for fp in self._cache.values()
+        ])
+
+    def memoize(self, f: Callable) -> List[Dict[str, Any]]:
+        """
+        Cache the caller's result based on input arguments.
+        """
+        async def wrapper(*a, **kw):
+            unique = map(str, (*a, *kw.keys(), *kw.values()))
+            key = '_'.join(unique)
+
+            try:
+                fp = self._cache[key]
+            except KeyError:
+                r = await f(*a, **kw)
+                self._latest_n += 1
+                fp = self.dir_ / f'{self._latest_n}.json'
+                self._cache[key] = str(fp)
+
+                with fp.open('w') as j:
+                    json.dump(r.json(), j, indent=4)
+
+                with self.cache_map.open('w') as j:
+                    json.dump(self._cache, j, indent=4)
+
+            else:
+                with pathlib.Path(fp).open('r') as j:
+                    r = _Response(json.load(j))
+
+            return r
+        return wrapper
 
 
 class RateLimitedHTTPClient(httpx.AsyncClient):
@@ -36,7 +106,7 @@ class RateLimitedHTTPClient(httpx.AsyncClient):
         """
         Rate limit expressed as "tokens per second".
         """
-        return self.tokens / self.seconds
+        return self.max_tokens / self.seconds
 
     async def wait_for_token(self):
         """

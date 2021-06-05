@@ -1,0 +1,230 @@
+{
+    "data": {
+        "tournaments": [
+            {
+                "league_id": 9663,
+                "league_name": "GESC: Thailand",
+                "league_start_date": 1516233600,
+                "league_end_date": 1526169600,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 5688,
+                "league_name": "Captains Draft 4.0 Minor",
+                "league_start_date": 1508112000,
+                "league_end_date": 1515283200,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 9601,
+                "league_name": "EPICENTER XL",
+                "league_start_date": 1515542400,
+                "league_end_date": 1527724800,
+                "tier": "MAJOR",
+                "prize_pool": 1000000
+            },
+            {
+                "league_id": 9643,
+                "league_name": "Dota2 Asia Championships 2018",
+                "league_start_date": 1516838400,
+                "league_end_date": 1523404800,
+                "tier": "MAJOR",
+                "prize_pool": 1000000
+            },
+            {
+                "league_id": 9908,
+                "league_name": "StarLadder ImbaTV Invitational Season 5",
+                "league_start_date": 1523491200,
+                "league_end_date": 1523836800,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 9579,
+                "league_name": "SL i-League Invitational Season 4",
+                "league_start_date": 1513382400,
+                "league_end_date": 1525046400,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 9683,
+                "league_name": "Corsair DreamLeague season 9",
+                "league_start_date": 1517443200,
+                "league_end_date": 1522540800,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 9662,
+                "league_name": "GESC: Indonesia",
+                "league_start_date": 1516233600,
+                "league_end_date": 1520726400,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 9584,
+                "league_name": "PGL BUCHAREST MAJOR 2018",
+                "league_start_date": 1514332800,
+                "league_end_date": 1520812800,
+                "tier": "MAJOR",
+                "prize_pool": 1000000
+            },
+            {
+                "league_id": 5627,
+                "league_name": "DreamLeague season 8",
+                "league_start_date": 1505952000,
+                "league_end_date": 1512950400,
+                "tier": "MAJOR",
+                "prize_pool": 1000000
+            },
+            {
+                "league_id": 9633,
+                "league_name": "ESL One Katowice 2018 powered by Intel",
+                "league_start_date": 1519344000,
+                "league_end_date": 1519516800,
+                "tier": "MAJOR",
+                "prize_pool": 1000000
+            },
+            {
+                "league_id": 8093,
+                "league_name": "ESL One Genting 2018",
+                "league_start_date": 1516665600,
+                "league_end_date": 1517097600,
+                "tier": "MINOR",
+                "prize_pool": 400000
+            },
+            {
+                "league_id": 5616,
+                "league_name": "PGL DOTA2 OPEN",
+                "league_start_date": 1505779200,
+                "league_end_date": 1508716800,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 5850,
+                "league_name": "Dota Summit 8",
+                "league_start_date": 1510617600,
+                "league_end_date": 1513468800,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 5637,
+                "league_name": "Perfect World Masters",
+                "league_start_date": 1506038400,
+                "league_end_date": 1512000000,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 5690,
+                "league_name": "AMD SAPPHIRE Dota PIT",
+                "league_start_date": 1506038400,
+                "league_end_date": 1507248000,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 5579,
+                "league_name": "SL i-League Invitational Season 3",
+                "league_start_date": 1504828800,
+                "league_end_date": 1509408000,
+                "tier": "MINOR",
+                "prize_pool": 300000
+            },
+            {
+                "league_id": 5609,
+                "league_name": "ESL One Hamburg 2017",
+                "league_start_date": 1508976000,
+                "league_end_date": 1509235200,
+                "tier": "MAJOR",
+                "prize_pool": 1000000
+            },
+            {
+                "league_id": 124,
+                "league_name": "SLTV Star Series Season 8",
+                "league_start_date": 1385373600,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 103,
+                "league_name": "Dota 2 Champions League",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 112,
+                "league_name": "ASUS ROG DreamLeague",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 65004,
+                "league_name": "The International East Qualifiers",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 65005,
+                "league_name": "The International West Qualifiers",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 65001,
+                "league_name": "The International 2012",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 2,
+                "league_name": "Wild Cards West",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 3,
+                "league_name": "Wild Cards East",
+                "league_start_date": null,
+                "league_end_date": null,
+                "tier": "MINOR",
+                "prize_pool": 0
+            },
+            {
+                "league_id": 11625,
+                "league_name": "The International 10",
+                "league_start_date": 1593561600,
+                "league_end_date": 1598140800,
+                "tier": "INTERNATIONAL",
+                "prize_pool": 40018195
+            },
+            {
+                "league_id": 13256,
+                "league_name": "The International 10",
+                "league_start_date": 1627689600,
+                "league_end_date": 1628899200,
+                "tier": "INTERNATIONAL",
+                "prize_pool": 40018195
+            }
+        ]
+    }
+}
