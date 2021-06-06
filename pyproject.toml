@@ -11,15 +11,14 @@ authors = ["boonhapus <me@boonhap.us>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-sqlalchemy = "^1.4"
-pydantic = "^1.4"
-httpx = "^0.12.1"
-psycopg2 = "^2.8.5"
-asyncpg = "^0.22.0"
-rich = "^9.10.0"
-typer = "^0.3.2"
-toml = "^0.10.2"
-aiofiles = "^0.6.0"
+sqlalchemy = ">=1.4"
+pydantic = "*"
+httpx = "*"
+asyncpg = "*"
+rich = "*"
+typer = "*"
+toml = "*"
+aiofiles = "*"
 
 [tool.poetry.dev-dependencies]
 ipykernel = "^5.2.0"
