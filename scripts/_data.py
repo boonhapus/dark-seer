@@ -381,6 +381,8 @@ async def ability(
 @db_options
 @_coro
 async def setup_database(
+    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
+    since: bool=O_(False, '--since', help='Get data on all patches since.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -402,12 +404,12 @@ async def setup_database(
         'patch': {'model': GameVersion, 'data': []},
         'tournament': {'model': Tournament, 'data': []},
         'hero': {'model': Hero, 'data': []},
-        'hero_history': {'model': HeroHistory, 'data': []},
         'item': {'model': Item, 'data': []},
-        'item_history': {'model': ItemHistory, 'data': []},
         'ability': {'model': Ability, 'data': []},
-        'ability_history': {'model': AbilityHistory, 'data': []},
         'npc': {'model': NPC, 'data': []},
+        'hero_history': {'model': HeroHistory, 'data': []},
+        'item_history': {'model': ItemHistory, 'data': []},
+        'ability_history': {'model': AbilityHistory, 'data': []},
         'npc_history': {'model': NPCHistory, 'data': []}
     }
 
@@ -420,7 +422,19 @@ async def setup_database(
             data['patch']['data'] = patches
             data['tournament']['data'] = tournaments
 
-            for idx, patch in enumerate(patches):
+            if patch:
+                try:
+                    cutoff = next(p for p in patches if p.patch == patch)
+                except StopIteration:
+                    console.print(f'[error]patch \'{patch}\' does not exist!')
+                    raise typer.Exit(-1)
+
+                if since:
+                    patches = [p for p in patches if p.patch_id >= cutoff.patch_id]
+                else:
+                    patches = [p for p in patches if p.patch_id == cutoff.patch_id]
+
+            for patch in patches:
                 status.update(f'collecting history on {patch.patch}')
                 hero_hist, item_hist, ability_hist, npc_hist = await asyncio.gather(
                     api.heroes(patch_id=patch.patch_id),
@@ -434,11 +448,22 @@ async def setup_database(
                 data['ability_history']['data'].extend(ability_hist)
                 data['npc_history']['data'].extend(npc_hist)
 
-                if idx == 0:
-                    data['hero']['data'] = [h.to_hero() for h in hero_hist]
-                    data['item']['data'] = [i.to_item() for i in item_hist]
-                    data['ability']['data'] = [a.to_ability() for a in ability_hist]
-                    data['npc']['data'] = [n.to_npc() for n in npc_hist]
+                data['hero']['data'].extend([
+                    h.to_hero() for h in hero_hist
+                    if h.hero_id not in (_.hero_id for _ in data['hero']['data'])
+                ])
+                data['item']['data'].extend([
+                    i.to_item() for i in item_hist
+                    if i.item_id not in (_.item_id for _ in data['item']['data'])
+                ])
+                data['ability']['data'].extend([
+                    a.to_ability() for a in ability_hist
+                    if a.ability_id not in (_.ability_id for _ in data['ability']['data'])
+                ])
+                data['npc']['data'].extend([
+                    n.to_npc() for n in npc_hist
+                    if n.npc_id not in (_.npc_id for _ in data['npc']['data'])
+                ])
 
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
