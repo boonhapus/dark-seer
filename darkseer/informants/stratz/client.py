@@ -1,4 +1,6 @@
 from typing import List
+import logging
+import asyncio
 
 import httpx
 
@@ -10,6 +12,7 @@ from .schema import (
 from .parse import _parse_draft_type, _parse_draft_is_random, _parse_draft_actor
 
 
+log = logging.getLogger(__name__)
 _cache = FileCache('C:/projects/dark-seer/scripts/cache')
 
 

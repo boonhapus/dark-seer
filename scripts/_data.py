@@ -112,11 +112,11 @@ async def patch(
     """
     db = Database(**db_options)
 
-    async with Stratz(bearer_token=token) as api:
-        with console.status('collecting data on patches..'):
+    with console.status('collecting data on patches..'):
+        async with Stratz(bearer_token=token) as api:
             r = await api.patches()
 
-    with console.status('writing data to darskeer database..') as status:
+    with console.status('writing data to darskeer database..'):
         async with db.session() as sess:
             stmt = upsert(GameVersion).values([v.dict() for v in r])
             await sess.execute(stmt)
