@@ -1,5 +1,6 @@
 import logging
 
+from rich.logging import RichHandler
 import sqlalchemy as sa
 import darkseer
 import typer
@@ -25,6 +26,11 @@ def run():
     """
     Entrypoint into dark-seer.
     """
+    logging.basicConfig(
+        level='DEBUG', format='%(message)s', datefmt='[%X]',
+        handlers=[RichHandler(console=console, rich_tracebacks=True, markup=True)]
+    )
+
     app.add_typer(data_app, name='data')
     app.add_typer(db_app, name='db')
 
