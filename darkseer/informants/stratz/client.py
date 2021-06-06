@@ -37,6 +37,50 @@ class Stratz(RateLimitedHTTPClient):
             self.max_tokens = 500
             self.headers.update({'authorization': f'Bearer {bearer_token}'})
 
+    #
+
+    @property
+    def burst(self) -> float:
+        """
+        STRATZ allows a 150req/min burst
+        """
+        return 150 / 60
+
+    async def wait_for_token(self, *, override: float=None):
+        """
+        Block the context until a token is available.
+        """
+        await asyncio.sleep(override or self.burst)
+
+    async def request(self, *a, backoff_: int=0, **kw):
+        """
+        Make a request, adjusting tokens if necessary.
+        """
+        r = await super().request(*a, **kw)
+
+        try:
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            log.warning(f'STRATZ responded with an error: {e}')
+            backoff_ += 1
+
+            if r.status_code == httpx.codes.TOO_MANY_REQUESTS:
+                override = float(r.headers['retry-after'])
+            else:
+                override = self.burst * backoff_
+
+            await self.wait_for_token(override=override)
+            r = await self.request(*a, backoff_=backoff_, **kw)
+
+        self.tokens = int(r.headers['x-ratelimit-remaining-hour'])
+
+        if self.tokens <= 25:
+            log.warning(f'approaching rate limit, requests left: {self.tokens}')
+
+        return r
+
+    #
+
     @_cache.memoize
     async def query(self, q: str, **variables) -> httpx.Request:
         """
