@@ -1,15 +1,18 @@
-from typing import List
+from typing import Union, List
 import logging
 import asyncio
 
+from pydantic import ValidationError
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
 from .schema import (
-    GameVersion, Tournament, CompetitiveTeam, Match,
+    GameVersion, Tournament, CompetitiveTeam, Match, IncompleteMatch,
     HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
-from .parse import _parse_draft_type, _parse_draft_is_random, _parse_draft_actor
+from .parse import (
+    parse_teams, parse_draft, parse_accounts, parse_players, parse_hero_movements
+)
 
 
 log = logging.getLogger(__name__)
@@ -36,9 +39,12 @@ class Stratz(RateLimitedHTTPClient):
         super().__init__(tokens=300, seconds=3600, base_url='https://api.stratz.com', timeout=None)
 
         if bearer_token is not None:
+            if not bearer_token.startswith('Bearer '):
+                bearer_token = f'Bearer {bearer_token}'
+
+            log.info('setting bearer token and raising rate limit to 500req/hr')
             self.tokens = 500
-            self.max_tokens = 500
-            self.headers.update({'authorization': f'Bearer {bearer_token}'})
+            self.headers.update({'authorization': bearer_token})
 
     #
 
@@ -165,7 +171,7 @@ class Stratz(RateLimitedHTTPClient):
 
         return [Tournament(**v) for v in leagues]
 
-    async def tournament_matches(self, *, league_id: int) -> List[Match]:
+    async def tournament_matches(self, *, league_id: int) -> List[Union[Match, IncompleteMatch]]:
         """
         """
         q = """
@@ -197,16 +203,18 @@ class Stratz(RateLimitedHTTPClient):
             if not data['tournament_matches']['matches']:
                 break
 
+        incompletes = []
         matches = []
 
         # Get all matches
         for chunk in chunks(_match_ids, n=10):
             r = await self.matches(match_ids=chunk)
-            matches.extend(r)
+            incompletes.extend([i for i in r if isinstance(i, IncompleteMatch)])
+            matches.extend([m for m in r if isinstance(m, Match)])
 
         return matches
 
-    async def reparse(self, *, replay_salts: List[int]):
+    async def reparse(self, *, replay_salts: List[int]) -> None:
         """
         """
         q = """
@@ -221,7 +229,7 @@ class Stratz(RateLimitedHTTPClient):
             r = r.json()['data']['stratz']['matchRetry']
             print(f'reparsing salt {salt}: {r}')
 
-    async def matches(self, *, match_ids: List[int]) -> List[Match]:
+    async def matches(self, *, match_ids: List[int]) -> List[Union[Match, IncompleteMatch]]:
         """
         """
         # Match is a composable object.
@@ -235,6 +243,7 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query Matches {
           matches: matches(ids: $match_ids) {
+            replay_salt: replay_salt
             match_id: id
             patch_id: gameVersionId
             league_id: leagueId
@@ -318,65 +327,23 @@ class Stratz(RateLimitedHTTPClient):
         """
         resp = await self.query(q, match_ids=match_ids)
         matches = []
-        to_reparse = []
 
-        for m in resp.json()['data']['matches']:
+        for match in resp.json()['data']['matches']:
+            m = {k: v for k, v in match.items() if not k.startswith('parse_')}
+
             try:
                 m['tournament'] = m['parse_league']
+                m['teams'] = parse_teams(m)
+                m['draft'] = parse_draft(m)
+                m['accounts'] = parse_accounts(m)
+                m['players'] = parse_players(m)
+                m['hero_movements'] = parse_hero_movements(m)
+                m = Match(**m)
+            except (TypeError, ValidationError):
+                m = IncompleteMatch(match_id=m['match_id'], replay_salt=m['replay_salt'])
 
-                m['teams'] = [
-                    t
-                    for t in (m['parse_radiant'], m['parse_dire'])
-                    if t is not None
-                ]
+            matches.append(Match(**m))
 
-                m['draft'] = [
-                    {
-                        'match_id': m['match_id'],
-                        'hero_id': pick_ban['hero_id'] or pick_ban['bannedHeroId'],
-                        'draft_type': _parse_draft_type(pick_ban),
-                        'draft_order': pick_ban['draft_order'],
-                        'is_random': _parse_draft_is_random(m['parse_match_players'], player_idx=pick_ban['playerIndex']),
-                        'by_steam_id': _parse_draft_actor(m['parse_match_players'], player_idx=pick_ban['playerIndex'])
-                    }
-                    for pick_ban in m['parse_match_draft']['pick_bans']
-                ]
-
-                m['accounts'] = [
-                    {
-                        'steam_id': p['acct']['steam_id'],
-                        'steam_name': p['acct']['is_pro']['steam_name'] if p['acct']['is_pro'] else p['acct']['steam_name']
-                    }
-                    for p in m['parse_match_players']
-                ]
-
-                m['players'] = [
-                    {
-                        'match_id': m['match_id'],
-                        **{k: v for k, v in p.items() if k != 'isRandom'}
-                    }
-                    for p in m['parse_match_players']
-                ]
-
-                m['hero_movements'] = [
-                    {
-                        'match_id': m['match_id'],
-                        'hero_id': player['hero_id'],
-                        'id': i,
-                        **position
-                    }
-                    for player in m['parse_match_players']
-                    for i, position in enumerate(player['hero_movement']['positions'])
-                ]
-
-                # remove extra data
-                [m.pop(k) for k in list(m.keys()) if k.startswith('parse_')]
-                matches.append(Match(**m))
-            except TypeError:
-                print(f'needs reparse: {m["parse_replay_salt"]} is missing movements!')
-                to_reparse.append(m['parse_replay_salt'])
-
-        await self.reparse(replay_salts=to_reparse)
         return matches
 
     async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:
@@ -409,7 +376,7 @@ class Stratz(RateLimitedHTTPClient):
               hero_internal_name: shortName
               hero_display_name: displayName
               patch_id: gameVersionId
-              stats {
+              parse_stats: stats {
                 primary_attribute: primaryAttribute
                 mana_regen_base: mpRegen
                 strength_base: strengthBase
@@ -443,13 +410,16 @@ class Stratz(RateLimitedHTTPClient):
         heroes = []
 
         for hero in resp.json()['data']['constants']['heroes']:
-            if hero['stats'] is None:
+            # hero wasn't yet released in this patch
+            if hero['parse_stats'] is None or None in hero['parse_stats'].values():
                 continue
 
-            data = {**hero, **hero['stats']}
-            data.pop('stats')
+            h = {
+                **{k: v for k, v in hero.items() if not k.startswith('parse_')},
+                **hero['parse_stats']
+            }
 
-            heroes.append(data)
+            heroes.append(h)
 
         return [HeroHistory(**v) for v in heroes]
 
@@ -464,7 +434,7 @@ class Stratz(RateLimitedHTTPClient):
               item_id: id
               item_internal_name: shortName
               item_display_name: displayName
-              stat {
+              parse_stats: stat {
                 cost
                 is_recipe: isRecipe
                 is_side_shop: isSideShop
@@ -481,12 +451,17 @@ class Stratz(RateLimitedHTTPClient):
         items = []
 
         for item in resp.json()['data']['constants']['items']:
-            if item['stat'] is None:
+            # item wasn't yet released in this patch
+            if item['parse_stats'] is None or None in item['parse_stats'].values():
                 continue
 
-            data = {'patch_id': patch_id, **item, **item['stat']}
-            data.pop('stat')
-            items.append(data)
+            i = {
+                'patch_id': patch_id,
+                **{k: v for k, v in item.items() if not k.startswith('parse_')},
+                **item['parse_stats']
+            }
+
+            items.append(i)
 
         return [ItemHistory(**v) for v in items]
 
@@ -500,7 +475,7 @@ class Stratz(RateLimitedHTTPClient):
             npcs (gameVersionId: $patch_id) {
               npc_id: id
               npc_internal_name: name
-              stat {
+              parse_stats: stat {
                 combat_class_attack: combatClassAttack
                 combat_class_defend: combatClassDefend
                 is_ancient: isAncient
@@ -518,12 +493,17 @@ class Stratz(RateLimitedHTTPClient):
         npcs = []
 
         for npc in resp.json()['data']['constants']['npcs']:
-            if npc['stat'] is None:
+            # npc wasn't yet released in this patch
+            if npc['parse_stats'] is None or None in npc['parse_stats'].values():
                 continue
 
-            data = {'patch_id': patch_id, **npc, **npc['stat']}
-            data.pop('stat')
-            npcs.append(data)
+            i = {
+                'patch_id': patch_id,
+                **{k: v for k, v in npc.items() if not k.startswith('parse_')},
+                **npc['parse_stats']
+            }
+
+            npcs.append(i)
 
         return [NPCHistory(**v) for v in npcs]
 
@@ -538,10 +518,10 @@ class Stratz(RateLimitedHTTPClient):
               ability_id: id
               ability_internal_name: name
               is_talent: isTalent
-              language {
+              parse_language: language {
                 ability_display_name: displayName
               }
-              stat {
+              parse_stats: stat {
                 has_scepter_upgrade: hasScepterUpgrade
                 is_scepter_upgrade: isGrantedByScepter
                 is_aghanims_shard: isGrantedByShard
@@ -561,19 +541,22 @@ class Stratz(RateLimitedHTTPClient):
         abilities = []
 
         for ability in resp.json()['data']['constants']['abilities']:
-            if ability['stat'] is None:
-                continue
+            # ignore base abilities
             if ability['ability_internal_name'] is None:
                 continue
 
-            data = {'patch_id': patch_id, **ability, **ability['stat']}
+            # ability wasn't yet released in this patch
+            if ability['parse_stats'] is None or None in ability['parse_stats'].values():
+                continue
 
-            if ability['language'] is not None:
-                data = {**data, **ability['language']}
+            a = {
+                'patch_id': patch_id,
+                **{k: v for k, v in ability.items() if not k.startswith('parse_')},
+                **ability['parse_stats'],
+                **{k: v for k, v in ability.items() if not k == 'parse_language' and v is not None}
+            }
 
-            data.pop('language')
-            data.pop('stat')
-            abilities.append(data)
+            abilities.append(a)
 
         return [AbilityHistory(**v) for v in abilities]
 

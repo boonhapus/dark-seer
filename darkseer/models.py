@@ -215,6 +215,7 @@ class Match(Base):
     __tablename__ = 'match'
 
     match_id = Column(BigInteger, primary_key=True)
+    replay_salt = Column(BigInteger)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'))
     league_id = Column(BigInteger, ForeignKey('tournament.league_id'), nullable=True)
     series_id = Column(BigInteger, nullable=True)

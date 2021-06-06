@@ -97,8 +97,14 @@ class MatchDraft(Base):
     by_steam_id: Optional[int]
 
 
+class IncompleteMatch(Base):
+    match_id: int
+    replay_salt: int
+
+
 class Match(Base):
     match_id: int
+    replay_salt: int
     patch_id: int
     league_id: Optional[int]
     series_id: Optional[int]
@@ -114,10 +120,10 @@ class Match(Base):
 
     tournament: Optional[Tournament]
     teams: Optional[List[CompetitiveTeam]]
-    accounts: Optional[List[Account]]
+    accounts: List[Account]
     draft: List[MatchDraft]
     players: List[MatchPlayer]
-    hero_movements: Optional[List[HeroMovement]]
+    hero_movements: List[HeroMovement]
     # events: List[MatchEvent]
 
     @validator('start_datetime', pre=True)
