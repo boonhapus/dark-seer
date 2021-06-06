@@ -2,11 +2,12 @@ from typing import List
 
 import httpx
 
-from darkseer.util import RateLimitedHTTPClient, FileCache
+from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
 from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match,
     HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
+from .parse import _parse_draft_type, _parse_draft_is_random, _parse_draft_actor
 
 
 _cache = FileCache('C:/projects/dark-seer/scripts/cache')
@@ -29,7 +30,7 @@ class Stratz(RateLimitedHTTPClient):
         if supplied, elevates the per-hour rate limit
     """
     def __init__(self, bearer_token: str=None):
-        super().__init__(tokens=300, seconds=3600, base_url='https://api.stratz.com')
+        super().__init__(tokens=300, seconds=3600, base_url='https://api.stratz.com', timeout=None)
 
         if bearer_token is not None:
             self.tokens = 500
@@ -68,7 +69,7 @@ class Stratz(RateLimitedHTTPClient):
             game_version: gameVersions {
               patch_id: id
               patch: name
-              release_dt: asOfDateTime
+              release_datetime: asOfDateTime
             }
           }
         }
@@ -122,6 +123,7 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query TournamentMatches {
           tournament_matches: league(id: $league_id) {
+            league_name: displayName
             matches(request: {
               skip: $skip_value,
               take: 50,
@@ -149,32 +151,166 @@ class Stratz(RateLimitedHTTPClient):
                 break
 
         # Get all matches
-        print(f'collected {len(_match_ids)} for tournament id: {league_id}')
+        for chunk in chunks(_match_ids, n=10):
+            r = await self.matches(match_ids=chunk)
+            matches.extend(r)
 
-        # return [Match(**v) for v in matches]
+        return matches
 
     async def matches(self, *, match_ids: List[int]) -> List[Match]:
         """
         """
-        q = """
-              patch_id: gameVersionId
-              league_id: leagueId
-              series_id: seriesId
-              radiant_team_id: radiantTeamId
-              dire_team_id: direTeamId
-              start_datetime: startDateTime
-              is_stats: isStats
-              duration: durationSeconds
-              region: regionId
-              lobby_type: lobbyType
-              game_mode: gameMode
-              winning_team: didRadiantWin
-        """
         # Match is a composable object.
-        # Match.draft = MatchDraft
-        # Match.players = MatchPlayer
-        # Match.hero_movement = HeroMovement
-        # Match.event = MatchEvent
+        # Match.tournament ...... Tournament
+        # Match.teams ........... CompetitiveTeam
+        # Match.accounts ........ Account
+        # Match.draft ........... MatchDraft
+        # Match.players ......... MatchPlayer
+        # Match.hero_movements .. HeroMovement
+        # Match.events .......... MatchEvent
+        q = """
+        query Matches {
+          matches: matches(ids: $match_ids) {
+            match_id: id
+            patch_id: gameVersionId
+            league_id: leagueId
+            radiant_team_id: radiantTeamId
+            dire_team_id: direTeamId
+            start_datetime: startDateTime
+            is_stats: isStats
+            winning_faction: didRadiantWin
+            duration: durationSeconds
+            region: regionId
+            lobby_type: lobbyType
+            game_mode: gameMode
+
+            parse_datetime: parsedDateTime
+            parse_league: league {
+              league_id: id
+              league_name: displayName
+              league_start_date: startDateTime
+              league_end_date: endDateTime
+              tier
+              prize_pool: prizePool
+            }
+            parse_radiant: radiantTeam {
+              team_id: id
+              team_name: name
+              team_tag: tag
+              country_code: countryCode
+              created: dateCreated
+            }
+            parse_dire: direTeam {
+              team_id: id
+              team_name: name
+              team_tag: tag
+              country_code: countryCode
+              created: dateCreated
+            }
+            parse_match_players: players {
+              # match_id
+              hero_id: heroId
+              steam_id: steamAccountId
+              slot: playerSlot
+              party_id: partyId
+              is_leaver: leaverStatus
+              # extra data for parsing
+              isRandom
+              acct: steamAccount {
+                steam_id: id
+                steam_name: name
+                is_pro: proSteamAccount {
+                  steam_name: name
+                }
+              }
+              hero_movement: playbackData {
+                positions: playerUpdatePositionEvents {
+                  # match_id:
+                  # hero_id:
+                  # id:
+                  time
+                  x
+                  y
+                }
+              }
+            }
+            parse_match_draft: stats {
+              pick_bans: pickBans {
+                # match_id:
+                hero_id: heroId
+                # draft_type:
+                draft_order: order
+                # is_random:
+                # by_steam_id:
+                # extra data for parsing
+                playerIndex
+                isPick
+                bannedHeroId
+                wasBannedSuccessfully
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, match_ids=match_ids)
+        matches = []
+
+        for m in resp.json()['data']['matches']:
+            if m['parse_datetime'] is None:
+                continue
+
+            m['tournament'] = m['parse_league']
+
+            m['teams'] = [
+                t
+                for t in (m['parse_radiant'], m['parse_dire'])
+                if t is not None
+            ]
+
+            m['draft'] = [
+                {
+                    'match_id': m['match_id'],
+                    'hero_id': pick_ban['hero_id'] or pick_ban['bannedHeroId'],
+                    'draft_type': _parse_draft_type(pick_ban),
+                    'draft_order': pick_ban['draft_order'],
+                    'is_random': _parse_draft_is_random(m['parse_match_players'], player_idx=pick_ban['playerIndex']),
+                    'by_steam_id': _parse_draft_actor(m['parse_match_players'], player_idx=pick_ban['playerIndex'])
+                }
+                for pick_ban in m['parse_match_draft']['pick_bans']
+            ]
+
+            m['accounts'] = [
+                {
+                    'steam_id': p['acct']['steam_id'],
+                    'steam_name': p['acct']['is_pro']['steam_name'] if p['acct']['is_pro'] else p['acct']['steam_name']
+                }
+                for p in m['parse_match_players']
+            ]
+
+            m['players'] = [
+                {
+                    'match_id': m['match_id'],
+                    **{k: v for k, v in p.items() if k != 'isRandom'}
+                }
+                for p in m['parse_match_players']
+            ]
+
+            m['hero_movements'] = [
+                {
+                    'match_id': m['match_id'],
+                    'hero_id': player['hero_id'],
+                    'id': i,
+                    **position
+                }
+                for player in m['parse_match_players']
+                for i, position in enumerate(player['hero_movement']['positions'])
+            ]
+
+            # remove extra data
+            [m.pop(k) for k in list(m.keys()) if k.startswith('parse_')]
+            matches.append(Match(**m))
+
+        return matches
 
     async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:
         """
@@ -230,7 +366,7 @@ class Stratz(RateLimitedHTTPClient):
                 vision_range_night: visionNighttimeRange
 
                 # true for dire, false for radiant
-                is_radiant: team
+                faction: team
               }
             }
           }
@@ -304,7 +440,7 @@ class Stratz(RateLimitedHTTPClient):
                 is_neutral: isNeutralUnitType
                 health: statusHealth
                 mana: statusMana
-                team: teamName
+                faction: teamName
                 unit_relationship_class: unitRelationshipClass
               }
             }
@@ -373,41 +509,6 @@ class Stratz(RateLimitedHTTPClient):
             abilities.append(data)
 
         return [AbilityHistory(**v) for v in abilities]
-
-    # async def matches(self, match_ids: List[int]) -> List[Match]:
-    #     """
-    #     """
-        # {
-        #   matches(ids: [5318105278]) {
-        #     match_id: id
-        #     region: regionId
-        #     lobby_type: lobbyType
-        #     game_mode: gameMode
-        #     patch_id: gameVersionId
-        #     start_datetime: startDateTime
-        #     duration: durationSeconds
-        #     is_radiant_win: didRadiantWin
-        #     is_stats: isStats
-        #     league_id: leagueId
-        #     series_id: seriesId
-        #     radiant_team_id: radiantTeamId
-        #     dire_team_id: direTeamId
-        #     rank: actualRank
-        #     players {
-        #       steam_id: steamAccountId
-        #     }
-        #     stats {
-        #       draft: pickBans {
-        #         is_pick: isPick
-        #         banned: wasBannedSuccessfully
-        #         by_player_index: playerIndex
-        #         picked_hero_id: heroId
-        #         banned_hero_id: bannedHeroId
-        #         draft_order: order
-        #       }
-        #     }
-        #   }
-        # }
 
     def __repr__(self) -> str:
         return f'<StratzClient {self.rate}r/s>'

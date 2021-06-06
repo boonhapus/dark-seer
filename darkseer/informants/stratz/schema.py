@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 import datetime as dt
 
 from pydantic import BaseModel, validator
@@ -18,15 +18,21 @@ class Base(BaseModel):
 class GameVersion(Base):
     patch_id: int
     patch: str
-    release_dt: dt.datetime
+    release_datetime: dt.datetime
 
     @property
     def orm_model(self):
         return GameVersion_
 
-    @validator('release_dt', pre=True)
+    @validator('release_datetime', pre=True)
     def ensure_utc(cls, ts: int) -> dt.datetime:
         return dt.datetime.utcfromtimestamp(ts)
+
+
+class Account(Base):
+    steam_id: int
+    steam_name: str
+    discord_id: Optional[int]
 
 
 class Tournament(Base):
@@ -53,8 +59,8 @@ class CompetitiveTeam(Base):
     team_id: int
     team_name: str
     team_tag: str
-    country_code: str
-    created: dt.datetime
+    country_code: Optional[str]
+    created: Optional[dt.datetime]
 
     @validator('created', pre=True)
     def ensure_utc(cls, ts: int) -> dt.datetime:
@@ -64,24 +70,64 @@ class CompetitiveTeam(Base):
         return dt.datetime.utcfromtimestamp(ts)
 
 
+class MatchPlayer(Base):
+    match_id: int
+    hero_id: int
+    steam_id: int
+    slot: int
+    party_id: Optional[int]
+    is_leaver: bool
+
+
+class HeroMovement(Base):
+    match_id: int
+    hero_id: int
+    id: int
+    time: int
+    x: int
+    y: int
+
+
+class MatchDraft(Base):
+    match_id: int
+    hero_id: int
+    draft_type: str
+    draft_order: Optional[int]
+    is_random: bool
+    by_steam_id: Optional[int]
+
+
 class Match(Base):
-    """
-    """
     match_id: int
     patch_id: int
-    league_id: int
-    series_id: int
-    radiant_team_id: int
-    dire_team_id: int
-    start_datetime: int
-    winning_team: str
+    league_id: Optional[int]
+    series_id: Optional[int]
+    radiant_team_id: Optional[int]
+    dire_team_id: Optional[int]
+    start_datetime: dt.datetime
+    winning_faction: str
     is_stats: bool
     duration: int
     region: str
     lobby_type: str
     game_mode: str
 
-    @validator('winning_team', pre=True)
+    tournament: Optional[Tournament]
+    teams: Optional[List[CompetitiveTeam]]
+    accounts: Optional[List[Account]]
+    draft: List[MatchDraft]
+    players: List[MatchPlayer]
+    hero_movements: List[HeroMovement]
+    # events: List[MatchEvent]
+
+    @validator('start_datetime', pre=True)
+    def ensure_utc(cls, ts: int) -> dt.datetime:
+        if ts is None:
+            return None
+
+        return dt.datetime.utcfromtimestamp(ts)
+
+    @validator('winning_faction', pre=True)
     def parse_winner(cls, is_radiant_win: bool) -> str:
         return 'radiant' if is_radiant_win else 'dire'
 
@@ -147,13 +193,13 @@ class HeroHistory(Base):
     magic_armor_base: float
     damage_base_max: int
     damage_base_min: int
-    is_radiant: bool
+    faction: str
     vision_range_day: int
     vision_range_night: int
 
-    @validator('is_radiant', pre=True)
-    def flip_is_dire(cls, is_dire: bool) -> bool:
-        return not is_dire
+    @validator('faction', pre=True)
+    def determine_team(cls, is_dire: bool) -> bool:
+        return 'dire' if is_dire else 'radiant'
 
     @validator(
         'mana_regen_base', 'strength_base', 'strength_gain', 'agility_base',
@@ -217,11 +263,11 @@ class NPCHistory(Base):
     is_neutral: bool
     health: int
     mana: int
-    team: str
+    faction: str
     unit_relationship_class: str
 
-    @validator('team', pre=True)
-    def translate_team(cls, value: str) -> str:
+    @validator('faction', pre=True)
+    def translate_faction(cls, value: str) -> str:
         mapping = {'goodguys': 'radiant', 'badguys': 'dire', 'neutrals': 'neutral'}
         return mapping.get(value.lower())
 

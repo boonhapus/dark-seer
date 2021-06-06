@@ -11,7 +11,7 @@ from darkseer.database import Base
 class Account(Base):
     __tablename__ = 'account'
 
-    steam_id = Column(BigInteger, primary_key=True, autoincrement=False)
+    steam_id = Column(BigInteger, primary_key=True)
     steam_name = Column(String)
     discord_id = Column(BigInteger, nullable=True)
 
@@ -55,9 +55,9 @@ class Tournament(Base):
 class GameVersion(Base):
     __tablename__ = 'game_version'
 
-    patch_id = Column(Integer, primary_key=True, autoincrement=False)
+    patch_id = Column(Integer, primary_key=True)
     patch = Column(String)
-    release_dt = Column(DateTime)
+    release_datetime = Column(DateTime)
 
     def __str__(self):
         patch = self.patch
@@ -67,7 +67,7 @@ class GameVersion(Base):
 class Hero(Base):
     __tablename__ = 'hero'
 
-    hero_id = Column(Integer, primary_key=True, autoincrement=False)
+    hero_id = Column(Integer, primary_key=True)
     hero_internal_name = Column(String)
 
     def __str__(self):
@@ -78,7 +78,7 @@ class Hero(Base):
 class HeroHistory(Base):
     __tablename__ = 'hero_history'
 
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True, autoincrement=False)
+    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     hero_internal_name = Column(String)
     hero_display_name = Column(String)
@@ -101,7 +101,7 @@ class HeroHistory(Base):
     magic_armor_base = Column(Float)
     damage_base_max = Column(Integer)
     damage_base_min = Column(Integer)
-    is_radiant = Column(Boolean)
+    faction = Column(String)
     vision_range_day = Column(Integer)
     vision_range_night = Column(Integer)
 
@@ -114,7 +114,7 @@ class HeroHistory(Base):
 class NPC(Base):
     __tablename__ = 'non_player_character'
 
-    npc_id = Column(Integer, primary_key=True, autoincrement=False)
+    npc_id = Column(Integer, primary_key=True)
     npc_internal_name = Column(String)
 
     def __str__(self):
@@ -125,7 +125,7 @@ class NPC(Base):
 class NPCHistory(Base):
     __tablename__ = 'non_player_character_history'
 
-    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), primary_key=True, autoincrement=False)
+    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     npc_internal_name = Column(String)
     combat_class_attack = Column(String)
@@ -134,7 +134,7 @@ class NPCHistory(Base):
     is_neutral = Column(Boolean)
     health = Column(Integer)
     mana = Column(Integer)
-    team = Column(String)
+    faction = Column(String)
     unit_relationship_class = Column(String)
 
     def __str__(self):
@@ -146,7 +146,7 @@ class NPCHistory(Base):
 class Item(Base):
     __tablename__ = 'item'
 
-    item_id = Column(Integer, primary_key=True, autoincrement=False)
+    item_id = Column(Integer, primary_key=True)
     item_internal_name = Column(String)
 
     def __str__(self):
@@ -157,7 +157,7 @@ class Item(Base):
 class ItemHistory(Base):
     __tablename__ = 'item_history'
 
-    item_id = Column(Integer, ForeignKey('item.item_id'), primary_key=True, autoincrement=False)
+    item_id = Column(Integer, ForeignKey('item.item_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     item_internal_name = Column(String)
     item_display_name = Column(String)
@@ -178,7 +178,7 @@ class ItemHistory(Base):
 class Ability(Base):
     __tablename__ = 'ability'
 
-    ability_id = Column(Integer, primary_key=True, autoincrement=False)
+    ability_id = Column(Integer, primary_key=True)
     ability_internal_name = Column(String)
 
     def __str__(self):
@@ -189,7 +189,7 @@ class Ability(Base):
 class AbilityHistory(Base):
     __tablename__ = 'ability_history'
 
-    ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True, autoincrement=False)
+    ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     ability_internal_name = Column(String)
     ability_display_name = Column(String)
@@ -214,14 +214,15 @@ class AbilityHistory(Base):
 class Match(Base):
     __tablename__ = 'match'
 
-    match_id = Column(BigInteger, primary_key=True, autoincrement=False)
+    match_id = Column(BigInteger, primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'))
-    league_id = Column(BigInteger, ForeignKey('tournament.league_id'))
-    radiant_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'))
-    dire_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'))
+    league_id = Column(BigInteger, ForeignKey('tournament.league_id'), nullable=True)
+    series_id = Column(BigInteger, nullable=True)
+    radiant_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'), nullable=True)
+    dire_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'), nullable=True)
     start_datetime = Column(DateTime, comment='held as naive, but UTC')
     is_stats = Column(Boolean)
-    winning_team = Column(String)
+    winning_faction = Column(String)
     duration = Column(Integer, comment='held as seconds')
     region = Column(String)
     lobby_type = Column(String)
@@ -238,12 +239,12 @@ class Match(Base):
 class MatchPlayer(Base):
     __tablename__ = 'match_player'
 
-    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
-    steam_id = Column(BigInteger, ForeignKey('account.steam_id'))
+    steam_id = Column(BigInteger, ForeignKey('account.steam_id'), nullable=True)
     slot = Column(Integer)
     party_id = Column(Integer)
-    is_leaver = Column(Integer)
+    is_leaver = Column(Boolean)
 
     def __str__(self):
         hero_name = self.hero.display_name
@@ -253,7 +254,7 @@ class MatchPlayer(Base):
 class HeroMovement(Base):
     __tablename__ = 'hero_movement'
 
-    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
     id = Column(Integer, primary_key=True)
     time = Column(Integer)
@@ -271,12 +272,12 @@ class HeroMovement(Base):
 class MatchDraft(Base):
     __tablename__ = 'match_draft'
 
-    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
     hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
-    draft_type = Column(String, primary_key=True, comment='ban vote, ban, pick')
+    draft_type = Column(String, primary_key=True, comment='ban vote, system generated ban, ban, pick')
     draft_order = Column(Integer)
-    is_random = Column(Integer)
-    by_steam_id = Column(Integer, ForeignKey('account.steam_id'), nullable=True)
+    is_random = Column(Boolean)
+    by_steam_id = Column(BigInteger, ForeignKey('account.steam_id'), nullable=True)
 
     def __str__(self):
         type = self.draft_type
@@ -310,7 +311,7 @@ class MatchEvent(Base):
     """
     __tablename__ = 'match_event'
 
-    match_id = Column(Integer, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
     id = Column(Integer, primary_key=True)
     event_type = Column(String)
     time = Column(Integer)

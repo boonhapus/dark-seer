@@ -4,15 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from darkseer.informants import Stratz
 from darkseer.database import Database
 from darkseer.models import (
-    GameVersion, Tournament,
-    Hero, HeroHistory, Item, ItemHistory, NPC, NPCHistory, Ability, AbilityHistory
+    GameVersion, Tournament, Account,
+    Hero, HeroHistory, Item, ItemHistory, NPC, NPCHistory, Ability, AbilityHistory,
+    Match, CompetitiveTeam, MatchDraft, MatchPlayer, HeroMovement  # , MatchEvent
 )
-from darkseer.util import upsert
+from darkseer.util import upsert, chunks
 from typer import Argument as A_, Option as O_
 import sqlalchemy as sa
 import typer
 
-from .common import to_csv, chunks
 from ._async import _coro
 from ._db import db_options
 from ._ux import console, RichGroup, RichCommand
@@ -46,12 +46,56 @@ async def get_patches_since(*, sess: AsyncSession, patch: str, since: bool):
     return await sess.execute(stmt)
 
 
+async def write_matches(sess, r):
+    """
+    """
+    r = [m.dict() for m in r]
+    deps = ('tournament', 'teams', 'accounts', 'draft', 'players', 'hero_movements', 'events')
+
+    t = [m['tournament'] for m in r]
+    for chunk in chunks(t, n=5000):
+        stmt = upsert(Tournament).values(chunk)
+        await sess.execute(stmt)
+
+    c = [c for m in r for c in m['teams']]
+    for chunk in chunks(c, n=6000):
+        stmt = upsert(CompetitiveTeam).values(chunk)
+        await sess.execute(stmt)
+
+    m = [{k: v for k, v in m.items() if k not in deps} for m in r]
+    for chunk in chunks(m, n=2500):
+        stmt = upsert(Match).values(chunk)
+        await sess.execute(stmt)
+
+    a = [a for m in r for a in m['accounts']]
+    for chunk in chunks(a, n=10000):
+        stmt = upsert(Account).values(chunk)
+        await sess.execute(stmt)
+
+    d = [d for m in r for d in m['draft']]
+    for chunk in chunks(d, n=5000):
+        stmt = upsert(MatchDraft).values(chunk)
+        await sess.execute(stmt)
+
+    p = [p for m in r for p in m['players']]
+    for chunk in chunks(p, n=3000):
+        stmt = upsert(MatchPlayer).values(chunk)
+        await sess.execute(stmt)
+
+    x = [x for m in r for x in m['hero_movements']]
+    for chunk in chunks(x, n=5000):
+        stmt = upsert(HeroMovement).values(chunk)
+        await sess.execute(stmt)
+
+    # stmt = upsert(MatchEvent).values([e for m in r for e in m['events']])
+    # await sess.execute(stmt)
+
+
 @stratz_app.command(cls=RichCommand)
 @db_options
 @_coro
 async def patch(
     patch: str=O_(None, help='Specific patch to get data for.'),
-    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -67,12 +111,10 @@ async def patch(
         with console.status('collecting data on patches..'):
             r = await api.patches()
 
-    if save_path is not None:
-        to_csv(save_path / 'patches.csv', data=[v.dict() for v in r])
-
-    async with db.session() as sess:
-        stmt = upsert(GameVersion).values([v.dict() for v in r])
-        await sess.execute(stmt)
+    with console.status('writing data to darskeer database..') as status:
+        async with db.session() as sess:
+            stmt = upsert(GameVersion).values([v.dict() for v in r])
+            await sess.execute(stmt)
 
 
 @stratz_app.command(cls=RichCommand)
@@ -81,7 +123,6 @@ async def patch(
 async def tournament(
     matches: bool=O_(False, '--matches', help='Whether or not to pull data on matches.'),
     league_id: int=O_(None, help='Specific league to get data for.'),
-    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -104,19 +145,36 @@ async def tournament(
                 for league in leagues:
                     status.update(f'collecting match data on {league.league_name}')
                     r = await api.tournament_matches(league_id=league.league_id)
-                    # matches.extend(r)
+                    matches.extend(r)
 
-    raise typer.Exit(-1)
+    with console.status('writing data to darskeer database..') as status:
+        async with db.session() as sess:
+            await write_matches(sess, matches)
 
-    if save_path is not None:
-        to_csv(save_path / 'tournaments.csv', data=[v.dict() for v in leagues])
 
-        # if matches:
-        #     to_csv(save_path / 'matches.csv', data=[v.dict() for v in matches])
+@stratz_app.command(cls=RichCommand)
+@db_options
+@_coro
+async def match(
+    match_id: int=O_(None, help='Match ID to get data for.'),
+    token: str=O_(
+        None, help='STRATZ Bearer token for elevated requests permission.',
+        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
+    ),
+    **db_options
+):
+    """
+    Collect Match data.
+    """
+    db = Database(**db_options)
 
-    async with db.session() as sess:
-        stmt = upsert(Tournament).values([v.dict() for v in leagues])
-        await sess.execute(stmt)
+    async with Stratz(bearer_token=token) as api:
+        with console.status(f'collecting data on match {match_id}..'):
+            r = await api.matches(match_ids=[match_id])
+
+    with console.status('writing data to darskeer database..') as status:
+        async with db.session() as sess:
+            await write_matches(sess, r)
 
 
 @stratz_app.command(cls=RichCommand)
@@ -126,7 +184,6 @@ async def hero(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     hero_id: str=O_(None, help='Specific Hero to get data for.'),
-    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -156,17 +213,14 @@ async def hero(
                     if schema.hero_id not in [h.hero_id for h in heroes]
                 ])
 
-    if save_path is not None:
-        to_csv(save_path / 'heroes.csv', data=[v.dict() for v in hero])
-        to_csv(save_path / 'hero_history.csv', data=[v.dict() for v in history])
-
-    async with db.session() as sess:
-        stmt = upsert(Hero).values([v.dict() for v in heroes])
-        await sess.execute(stmt)
-
-        for chunk in chunks(history, n=1000):
-            stmt = upsert(HeroHistory).values([v.dict() for v in chunk])
+    with console.status('writing data to darskeer database..') as status:
+        async with db.session() as sess:
+            stmt = upsert(Hero).values([v.dict() for v in heroes])
             await sess.execute(stmt)
+
+            for chunk in chunks(history, n=1000):
+                stmt = upsert(HeroHistory).values([v.dict() for v in chunk])
+                await sess.execute(stmt)
 
 
 @stratz_app.command(cls=RichCommand)
@@ -176,7 +230,6 @@ async def item(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     item_id: str=O_(None, help='Specific Item to get data for.'),
-    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -206,10 +259,6 @@ async def item(
                     if schema.item_id not in [i.item_id for i in items]
                 ])
 
-    if save_path is not None:
-        to_csv(save_path / 'items.csv', data=[v.dict() for v in items])
-        to_csv(save_path / 'item_history.csv', data=[v.dict() for v in history])
-
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
             stmt = upsert(Item).values([v.dict() for v in items])
@@ -227,7 +276,6 @@ async def npc(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     npc_id: str=O_(None, help='Specific NPC to get data for.'),
-    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -257,10 +305,6 @@ async def npc(
                     if schema.npc_id not in [i.npc_id for i in npcs]
                 ])
 
-    if save_path is not None:
-        to_csv(save_path / 'npcs.csv', data=[v.dict() for v in npc])
-        to_csv(save_path / 'npc_history.csv', data=[v.dict() for v in history])
-
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
             stmt = upsert(NPC).values([v.dict() for v in npcs])
@@ -278,7 +322,6 @@ async def ability(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     ability_id: str=O_(None, help='Specific Ability to get data for.'),
-    save_path: pathlib.Path=O_(None, help='Directory to save data pull to.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -307,10 +350,6 @@ async def ability(
                     for schema in r
                     if schema.ability_id not in [i.ability_id for i in abilities]
                 ])
-
-    if save_path is not None:
-        to_csv(save_path / 'abilities.csv', data=[v.dict() for v in ability])
-        to_csv(save_path / 'ability_history.csv', data=[v.dict() for v in history])
 
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
