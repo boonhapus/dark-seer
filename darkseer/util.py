@@ -46,7 +46,7 @@ class FileCache:
             self._cache = json.load(j)
 
         self._latest_n = max([
-            int(fp.split('.json')[0][-1])
+            int(pathlib.Path(fp).stem)
             for fp in self._cache.values()
         ])
 
@@ -74,6 +74,7 @@ class FileCache:
 
             else:
                 with pathlib.Path(fp).open('r') as j:
+                    print(f'loading from cache: {fp}')
                     r = _Response(json.load(j))
 
             return r
@@ -188,3 +189,11 @@ def upsert(model: sa.Table, *, constraint: List[str]=None) -> sa.sql.Insert:
         }
     )
     return stmt
+
+
+def chunks(iter_, *, n: int) -> iter:
+    """
+    Yield successive n-sized chunks from lst.
+    """
+    for i in range(0, len(iter_), n):
+        yield iter_[i:i + n]
