@@ -34,6 +34,7 @@ class Stratz(RateLimitedHTTPClient):
 
         if bearer_token is not None:
             self.tokens = 500
+            self.max_tokens = 500
             self.headers.update({'authorization': f'Bearer {bearer_token}'})
 
     @_cache.memoize
@@ -134,7 +135,6 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
-        matches = []
         _match_ids = []
 
         # Get all Match IDs for all tournaments.
@@ -150,12 +150,29 @@ class Stratz(RateLimitedHTTPClient):
             if not data['tournament_matches']['matches']:
                 break
 
+        matches = []
+
         # Get all matches
         for chunk in chunks(_match_ids, n=10):
             r = await self.matches(match_ids=chunk)
             matches.extend(r)
 
         return matches
+
+    async def reparse(self, *, replay_salts: List[int]):
+        """
+        """
+        q = """
+        query {
+          stratz {
+            matchRetry(id: $replay_salt)
+          }
+        }
+        """
+        for salt in replay_salts:
+            r = await self.query(q, replay_salt=salt)
+            r = r.json()['data']['stratz']['matchRetry']
+            print(f'reparsing salt {salt}: {r}')
 
     async def matches(self, *, match_ids: List[int]) -> List[Match]:
         """
@@ -184,7 +201,7 @@ class Stratz(RateLimitedHTTPClient):
             lobby_type: lobbyType
             game_mode: gameMode
 
-            parse_datetime: parsedDateTime
+            parse_replay_salt: replaySalt
             parse_league: league {
               league_id: id
               league_name: displayName
@@ -254,62 +271,65 @@ class Stratz(RateLimitedHTTPClient):
         """
         resp = await self.query(q, match_ids=match_ids)
         matches = []
+        to_reparse = []
 
         for m in resp.json()['data']['matches']:
-            if m['parse_datetime'] is None:
-                continue
+            try:
+                m['tournament'] = m['parse_league']
 
-            m['tournament'] = m['parse_league']
+                m['teams'] = [
+                    t
+                    for t in (m['parse_radiant'], m['parse_dire'])
+                    if t is not None
+                ]
 
-            m['teams'] = [
-                t
-                for t in (m['parse_radiant'], m['parse_dire'])
-                if t is not None
-            ]
+                m['draft'] = [
+                    {
+                        'match_id': m['match_id'],
+                        'hero_id': pick_ban['hero_id'] or pick_ban['bannedHeroId'],
+                        'draft_type': _parse_draft_type(pick_ban),
+                        'draft_order': pick_ban['draft_order'],
+                        'is_random': _parse_draft_is_random(m['parse_match_players'], player_idx=pick_ban['playerIndex']),
+                        'by_steam_id': _parse_draft_actor(m['parse_match_players'], player_idx=pick_ban['playerIndex'])
+                    }
+                    for pick_ban in m['parse_match_draft']['pick_bans']
+                ]
 
-            m['draft'] = [
-                {
-                    'match_id': m['match_id'],
-                    'hero_id': pick_ban['hero_id'] or pick_ban['bannedHeroId'],
-                    'draft_type': _parse_draft_type(pick_ban),
-                    'draft_order': pick_ban['draft_order'],
-                    'is_random': _parse_draft_is_random(m['parse_match_players'], player_idx=pick_ban['playerIndex']),
-                    'by_steam_id': _parse_draft_actor(m['parse_match_players'], player_idx=pick_ban['playerIndex'])
-                }
-                for pick_ban in m['parse_match_draft']['pick_bans']
-            ]
+                m['accounts'] = [
+                    {
+                        'steam_id': p['acct']['steam_id'],
+                        'steam_name': p['acct']['is_pro']['steam_name'] if p['acct']['is_pro'] else p['acct']['steam_name']
+                    }
+                    for p in m['parse_match_players']
+                ]
 
-            m['accounts'] = [
-                {
-                    'steam_id': p['acct']['steam_id'],
-                    'steam_name': p['acct']['is_pro']['steam_name'] if p['acct']['is_pro'] else p['acct']['steam_name']
-                }
-                for p in m['parse_match_players']
-            ]
+                m['players'] = [
+                    {
+                        'match_id': m['match_id'],
+                        **{k: v for k, v in p.items() if k != 'isRandom'}
+                    }
+                    for p in m['parse_match_players']
+                ]
 
-            m['players'] = [
-                {
-                    'match_id': m['match_id'],
-                    **{k: v for k, v in p.items() if k != 'isRandom'}
-                }
-                for p in m['parse_match_players']
-            ]
+                m['hero_movements'] = [
+                    {
+                        'match_id': m['match_id'],
+                        'hero_id': player['hero_id'],
+                        'id': i,
+                        **position
+                    }
+                    for player in m['parse_match_players']
+                    for i, position in enumerate(player['hero_movement']['positions'])
+                ]
 
-            m['hero_movements'] = [
-                {
-                    'match_id': m['match_id'],
-                    'hero_id': player['hero_id'],
-                    'id': i,
-                    **position
-                }
-                for player in m['parse_match_players']
-                for i, position in enumerate(player['hero_movement']['positions'])
-            ]
+                # remove extra data
+                [m.pop(k) for k in list(m.keys()) if k.startswith('parse_')]
+                matches.append(Match(**m))
+            except TypeError:
+                print(f'needs reparse: {m["parse_replay_salt"]} is missing movements!')
+                to_reparse.append(m['parse_replay_salt'])
 
-            # remove extra data
-            [m.pop(k) for k in list(m.keys()) if k.startswith('parse_')]
-            matches.append(Match(**m))
-
+        await self.reparse(replay_salts=to_reparse)
         return matches
 
     async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:

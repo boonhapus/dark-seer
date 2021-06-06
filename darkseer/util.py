@@ -135,7 +135,7 @@ class RateLimitedHTTPClient(httpx.AsyncClient):
         Make a request, adjusting tokens if necessary.
         """
         r = await super().request(*a, **kw)
-        remaining_tokens = int(r.headers['x-ratelimit-remaining-hour']) - 10
+        remaining_tokens = int(r.headers['x-ratelimit-remaining-hour'])
 
         if remaining_tokens < self.tokens:
             self.tokens = max(0, remaining_tokens)

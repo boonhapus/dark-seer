@@ -117,7 +117,7 @@ class Match(Base):
     accounts: Optional[List[Account]]
     draft: List[MatchDraft]
     players: List[MatchPlayer]
-    hero_movements: List[HeroMovement]
+    hero_movements: Optional[List[HeroMovement]]
     # events: List[MatchEvent]
 
     @validator('start_datetime', pre=True)
