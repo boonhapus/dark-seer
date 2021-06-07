@@ -1,3 +1,4 @@
+from typing import List
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,48 +54,48 @@ def unique(duplicated):
     return [dict(e) for e in intermediary]
 
 
-async def write_matches(sess, r):
+async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
     """
     """
-    r = [m.dict() for m in r]
+    matches = [m.dict() for m in matches]
     deps = ('tournament', 'teams', 'accounts', 'draft', 'players', 'hero_movements', 'events')
 
-    t = unique([m['tournament'] for m in r])
+    t = unique([m['tournament'] for m in matches])
     for chunk in chunks(t, n=5000):
         stmt = upsert(Tournament).values(chunk)
         await sess.execute(stmt)
 
-    c = unique([c for m in r for c in m['teams']])
+    c = unique([c for m in matches for c in m['teams']])
     for chunk in chunks(c, n=6000):
         stmt = upsert(CompetitiveTeam).values(chunk)
         await sess.execute(stmt)
 
-    m = unique([{k: v for k, v in m.items() if k not in deps} for m in r])
+    m = unique([{k: v for k, v in m.items() if k not in deps} for m in matches])
     for chunk in chunks(m, n=2500):
         stmt = upsert(Match).values(chunk)
         await sess.execute(stmt)
 
-    a = unique([a for m in r for a in m['accounts']])
+    a = unique([a for m in matches for a in m['accounts']])
     for chunk in chunks(a, n=10000):
         stmt = upsert(Account).values(chunk)
         await sess.execute(stmt)
 
-    d = unique([d for m in r for d in m['draft']])
+    d = unique([d for m in matches for d in m['draft']])
     for chunk in chunks(d, n=5000):
         stmt = upsert(MatchDraft).values(chunk)
         await sess.execute(stmt)
 
-    p = unique([p for m in r for p in m['players']])
+    p = unique([p for m in matches for p in m['players']])
     for chunk in chunks(p, n=3000):
         stmt = upsert(MatchPlayer).values(chunk)
         await sess.execute(stmt)
 
-    x = unique([x for m in r for x in (m['hero_movements'] or [])])
+    x = unique([x for m in matches for x in (m['hero_movements'] or [])])
     for chunk in chunks(x, n=5000):
         stmt = upsert(MatchHeroMovement).values(chunk)
         await sess.execute(stmt)
 
-    # stmt = upsert(MatchEvent).values([e for m in r for e in m['events']])
+    # stmt = upsert(MatchEvent).values([e for m in matches for e in m['events']])
     # await sess.execute(stmt)
 
 
@@ -161,12 +162,14 @@ async def tournament(
             with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
                 await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
 
-    with console.status('writing data to darskeer database..'):
+    with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
+            status.update(f'writing {len(leagues)} leagues to the darkseer database')
             stmt = upsert(Tournament).values([v.dict() for v in leagues])
             await sess.execute(stmt)
 
             if matches:
+                status.update(f'writing {len(matches)} matches to the darkseer database')
                 await write_matches(sess, matches)
 
                 status.update(f'writing {len(incomplete)} matches to the stage')

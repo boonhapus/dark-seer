@@ -1,5 +1,6 @@
 from typing import Any, List, Dict, Callable
 import asyncio
+import logging
 import pathlib
 import json
 import time
@@ -12,15 +13,18 @@ import httpx
 from ._version import __version__
 
 
+log = logging.getLogger(__name__)
+
+
 class _Response:
     """
     Dummy response object.
     """
-    def __init__(self, r):
-        self.r = r
+    def __init__(self, data):
+        self.data = data
 
     def json(self):
-        return self.r
+        return self.data
 
     def raise_for_status(self):
         pass
@@ -74,7 +78,7 @@ class FileCache:
 
             else:
                 with pathlib.Path(fp).open('r') as j:
-                    print(f'loading from cache: {fp}')
+                    log.info(f'loading from cache: {fp}')
                     r = _Response(json.load(j))
 
             return r
