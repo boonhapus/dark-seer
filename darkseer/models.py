@@ -1,9 +1,8 @@
 from sqlalchemy import (
-    Column, ForeignKey, ForeignKeyConstraint,
-    Date, DateTime, Integer, BigInteger, Float, Boolean, String
+    Column, ForeignKey,
+    Date, DateTime, SmallInteger, Integer, BigInteger, Float, Boolean, String
 )
 from sqlalchemy.dialects.postgresql import JSON
-# from sqlalchemy.orm import relationship
 
 from darkseer.database import Base
 
@@ -67,7 +66,7 @@ class GameVersion(Base):
 class Hero(Base):
     __tablename__ = 'hero'
 
-    hero_id = Column(Integer, primary_key=True)
+    hero_id = Column(SmallInteger, primary_key=True)
     hero_internal_name = Column(String)
 
     def __str__(self):
@@ -78,7 +77,7 @@ class Hero(Base):
 class HeroHistory(Base):
     __tablename__ = 'hero_history'
 
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     hero_internal_name = Column(String)
     hero_display_name = Column(String)
@@ -241,7 +240,7 @@ class MatchPlayer(Base):
     __tablename__ = 'match_player'
 
     match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     steam_id = Column(BigInteger, ForeignKey('account.steam_id'), nullable=True)
     slot = Column(Integer)
     party_id = Column(Integer)
@@ -252,15 +251,15 @@ class MatchPlayer(Base):
         return f'<[m] Player: slot {self.slot} on {hero_name}>'
 
 
-class HeroMovement(Base):
-    __tablename__ = 'hero_movement'
+class MatchHeroMovement(Base):
+    __tablename__ = 'match_hero_movement'
 
     match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     id = Column(Integer, primary_key=True)
-    time = Column(Integer)
-    x = Column(Integer)
-    y = Column(Integer)
+    time = Column(SmallInteger)
+    x = Column(SmallInteger)
+    y = Column(SmallInteger)
 
     def __str__(self):
         hero = self.hero.display_name
@@ -274,7 +273,7 @@ class MatchDraft(Base):
     __tablename__ = 'match_draft'
 
     match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'), primary_key=True)
+    hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     draft_type = Column(String, primary_key=True, comment='ban vote, system generated ban, ban, pick')
     draft_order = Column(Integer)
     is_random = Column(Boolean)
@@ -318,7 +317,7 @@ class MatchEvent(Base):
     time = Column(Integer)
     x = Column(Integer)
     y = Column(Integer)
-    hero_id = Column(Integer, ForeignKey('hero.hero_id'), nullable=True)
+    hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), nullable=True)
     npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), nullable=True)
     ability_id = Column(Integer, ForeignKey('ability.ability_id'), nullable=True)
     item_id = Column(Integer, ForeignKey('item.item_id'), nullable=True)
