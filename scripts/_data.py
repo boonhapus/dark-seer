@@ -7,7 +7,8 @@ from darkseer.database import Database
 from darkseer.models import (
     GameVersion, Tournament, Account,
     Hero, HeroHistory, Item, ItemHistory, NPC, NPCHistory, Ability, AbilityHistory,
-    Match, CompetitiveTeam, MatchDraft, MatchPlayer, MatchHeroMovement  # , MatchEvent
+    Match, CompetitiveTeam, MatchDraft, MatchPlayer, MatchHeroMovement,  # , MatchEvent
+    StagingReparseMatch
 )
 from darkseer.util import upsert, chunks
 from typer import Argument as A_, Option as O_
@@ -168,6 +169,10 @@ async def tournament(
             if matches:
                 await write_matches(sess, matches)
 
+                status.update(f'writing {len(incomplete)} matches to the stage')
+                stmt = upsert(StagingReparseMatch).values([v.dict() for v in incomplete])
+                await sess.execute(stmt)
+
 
 @stratz_app.command(cls=RichCommand)
 @db_options
@@ -193,10 +198,20 @@ async def match(
     async with Stratz(bearer_token=token) as api:
         with console.status(f'collecting data on match id {match_id}..'):
             r = await api.matches(match_ids=[match_id])
+            matches = [_ for _ in r if isinstance(_, schema.Match)]
+            incomplete = [_ for _ in r if isinstance(_, schema.IncompleteMatch)]
+
+        with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
+            await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
 
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
-            await write_matches(sess, r)
+            status.update(f'writing {len(matches)} matches to the darkseer database')
+            await write_matches(sess, matches)
+
+            status.update(f'writing {len(incomplete)} matches to the stage')
+            stmt = upsert(StagingReparseMatch).values([v.dict() for v in incomplete])
+            await sess.execute(stmt)
 
 
 @stratz_app.command(cls=RichCommand)

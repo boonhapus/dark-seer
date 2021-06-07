@@ -210,6 +210,12 @@ class AbilityHistory(Base):
         return f'<[m] Ability {name} ({patch})>'
 
 
+class StagingReparseMatch(Base):
+    __tablename__ = 'staging_match_to_reparse'
+    match_id = Column(BigInteger, primary_key=True)
+    replay_salt = Column(BigInteger)
+
+
 class Match(Base):
     __tablename__ = 'match'
 
