@@ -502,8 +502,8 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query Matches {
           matches: matches(ids: $match_ids) {
-            replay_salt: replay_salt
             match_id: id
+            replay_salt: replaySalt
             patch_id: gameVersionId
             league_id: leagueId
             radiant_team_id: radiantTeamId
@@ -516,7 +516,6 @@ class Stratz(RateLimitedHTTPClient):
             lobby_type: lobbyType
             game_mode: gameMode
 
-            parse_replay_salt: replaySalt
             parse_league: league {
               league_id: id
               league_name: displayName
@@ -591,17 +590,17 @@ class Stratz(RateLimitedHTTPClient):
             m = {k: v for k, v in match.items() if not k.startswith('parse_')}
 
             try:
-                m['tournament'] = m['parse_league']
-                m['teams'] = parse_teams(m)
-                m['draft'] = parse_draft(m)
-                m['accounts'] = parse_accounts(m)
-                m['players'] = parse_players(m)
-                m['hero_movements'] = parse_hero_movements(m)
+                m['tournament'] = match['parse_league']
+                m['teams'] = parse_teams(match)
+                m['draft'] = parse_draft(match)
+                m['accounts'] = parse_accounts(match)
+                m['players'] = parse_players(match)
+                m['hero_movements'] = parse_hero_movements(match)
                 m = Match(**m)
             except (TypeError, ValidationError):
                 m = IncompleteMatch(match_id=m['match_id'], replay_salt=m['replay_salt'])
 
-            matches.append(Match(**m))
+            matches.append(m)
 
         return matches
 
