@@ -113,7 +113,7 @@ class HeroHistory(Base):
 class NPC(Base):
     __tablename__ = 'non_player_character'
 
-    npc_id = Column(Integer, primary_key=True)
+    npc_id = Column(SmallInteger, primary_key=True)
     npc_internal_name = Column(String)
 
     def __str__(self):
@@ -124,7 +124,7 @@ class NPC(Base):
 class NPCHistory(Base):
     __tablename__ = 'non_player_character_history'
 
-    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), primary_key=True)
+    npc_id = Column(SmallInteger, ForeignKey('non_player_character.npc_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     npc_internal_name = Column(String)
     combat_class_attack = Column(String)
@@ -145,7 +145,7 @@ class NPCHistory(Base):
 class Item(Base):
     __tablename__ = 'item'
 
-    item_id = Column(Integer, primary_key=True)
+    item_id = Column(SmallInteger, primary_key=True)
     item_internal_name = Column(String)
 
     def __str__(self):
@@ -156,7 +156,7 @@ class Item(Base):
 class ItemHistory(Base):
     __tablename__ = 'item_history'
 
-    item_id = Column(Integer, ForeignKey('item.item_id'), primary_key=True)
+    item_id = Column(SmallInteger, ForeignKey('item.item_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     item_internal_name = Column(String)
     item_display_name = Column(String)
@@ -177,7 +177,7 @@ class ItemHistory(Base):
 class Ability(Base):
     __tablename__ = 'ability'
 
-    ability_id = Column(Integer, primary_key=True)
+    ability_id = Column(SmallInteger, primary_key=True)
     ability_internal_name = Column(String)
 
     def __str__(self):
@@ -188,7 +188,7 @@ class Ability(Base):
 class AbilityHistory(Base):
     __tablename__ = 'ability_history'
 
-    ability_id = Column(Integer, ForeignKey('ability.ability_id'), primary_key=True)
+    ability_id = Column(SmallInteger, ForeignKey('ability.ability_id'), primary_key=True)
     patch_id = Column(Integer, ForeignKey('game_version.patch_id'), primary_key=True)
     ability_internal_name = Column(String)
     ability_display_name = Column(String)
@@ -320,13 +320,13 @@ class MatchEvent(Base):
     match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
     id = Column(Integer, primary_key=True)
     event_type = Column(String)
-    time = Column(Integer)
-    x = Column(Integer)
-    y = Column(Integer)
+    time = Column(SmallInteger)
+    x = Column(SmallInteger)
+    y = Column(SmallInteger)
     hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), nullable=True)
-    npc_id = Column(Integer, ForeignKey('non_player_character.npc_id'), nullable=True)
-    ability_id = Column(Integer, ForeignKey('ability.ability_id'), nullable=True)
-    item_id = Column(Integer, ForeignKey('item.item_id'), nullable=True)
+    npc_id = Column(SmallInteger, ForeignKey('non_player_character.npc_id'), nullable=True)
+    ability_id = Column(SmallInteger, ForeignKey('ability.ability_id'), nullable=True)
+    item_id = Column(SmallInteger, ForeignKey('item.item_id'), nullable=True)
     extra_data = Column(JSON)
 
     def __str__(self):
