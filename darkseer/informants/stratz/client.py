@@ -467,14 +467,12 @@ class Stratz(RateLimitedHTTPClient):
             if not data['tournament_matches']['matches']:
                 break
 
-        incompletes = []
         matches = []
 
         # Get all matches
         for chunk in chunks(_match_ids, n=10):
             r = await self.matches(match_ids=chunk)
-            incompletes.extend([i for i in r if isinstance(i, IncompleteMatch)])
-            matches.extend([m for m in r if isinstance(m, Match)])
+            matches.extend(r)
 
         return matches
 
