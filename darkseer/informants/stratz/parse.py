@@ -8,6 +8,7 @@ def _parse_draft_type(pick_ban: List[Dict]) -> str:
     """
     One of.. ban vote, pick, ban
     """
+    # TODO .. use glom?
     if pick_ban['isPick']:
         return 'pick'
 
@@ -27,8 +28,7 @@ def _parse_draft_is_random(
     *,
     player_idx: Optional[int]
 ) -> Optional[int]:
-    """
-    """
+    # TODO .. use glom?
     if player_idx is None:
         return False
 
@@ -40,8 +40,7 @@ def _parse_draft_actor(
     *,
     player_idx: Optional[int]
 ) -> Optional[int]:
-    """
-    """
+    # TODO .. use glom?
     if player_idx is None:
         return None
 
@@ -49,15 +48,20 @@ def _parse_draft_actor(
 
 
 def parse_teams(m) -> Optional[FLAT_API_RESPONSE]:
-    """
-    """
+    # TODO .. use glom?
+    #
+    # glom_spec = {
+    #     'teams': [
+    #         Coalesce('parse_radiant', default=None),
+    #         Coalesce('parse_dire', default=None)
+    #     ]
+    # }
     r = [t for t in (m['parse_radiant'], m['parse_dire']) if t is not None]
     return r
 
 
 def parse_draft(m) -> Optional[FLAT_API_RESPONSE]:
-    """
-    """
+    # TODO .. use glom?
     r = [
         {
             'match_id': m['match_id'],
@@ -73,8 +77,7 @@ def parse_draft(m) -> Optional[FLAT_API_RESPONSE]:
 
 
 def parse_accounts(m) -> Optional[FLAT_API_RESPONSE]:
-    """
-    """
+    # TODO .. use glom?
     r = [
         {
             'steam_id': p['acct']['steam_id'],
@@ -86,8 +89,7 @@ def parse_accounts(m) -> Optional[FLAT_API_RESPONSE]:
 
 
 def parse_players(m) -> Optional[FLAT_API_RESPONSE]:
-    """
-    """
+    # TODO .. use glom?
     r = [
         {
             'match_id': m['match_id'],
@@ -99,8 +101,7 @@ def parse_players(m) -> Optional[FLAT_API_RESPONSE]:
 
 
 def parse_hero_movements(m) -> Optional[FLAT_API_RESPONSE]:
-    """
-    """
+    # TODO .. use glom?
     r = [
         {
             'match_id': m['match_id'],
