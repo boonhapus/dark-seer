@@ -1,6 +1,7 @@
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from darskeer.informants.stratz import schema
 from darkseer.informants import Stratz
 from darkseer.database import Database
 from darkseer.models import (
@@ -148,13 +149,18 @@ async def tournament(
 
         if matches:
             matches = []
+            incomplete = []
 
             for league in leagues:
                 with console.status(f'collecting matches for {league.league_name}..'):
                     m = await api.tournament_matches(league_id=league.league_id)
-                    matches.extend(m)
+                    matches.extend(_ for _ in m if isinstance(_, schema.Match))
+                    incomplete.extend(_ for _ in m if isinstance(_, schema.IncompleteMatch))
 
-    with console.status('writing data to darskeer database..') as status:
+            with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
+                await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
+
+    with console.status('writing data to darskeer database..'):
         async with db.session() as sess:
             stmt = upsert(Tournament).values([v.dict() for v in leagues])
             await sess.execute(stmt)
