@@ -25,11 +25,12 @@ class Stratz(RateLimitedHTTPClient):
 
     Documentation:
         https://docs.stratz.com/
+        https://api.stratz.com/graphiql
 
     [ANON] Rate limit is 300/hour, 150/minute @ 20 requests per second.
     [AUTH] Rate limit is 500/hour, 150/minute @ 20 requests per second.
 
-    Attributes
+    Parameters
     ----------
     bearer_token : str, default None
         token in the format "Bearer XXXXXX..."
@@ -51,19 +52,27 @@ class Stratz(RateLimitedHTTPClient):
     @property
     def burst(self) -> float:
         """
-        STRATZ allows a 150req/min burst
+        STRATZ allows a 150req/min burst.
         """
         return 150 / 60
 
-    async def wait_for_token(self, *, override: float=None):
+    async def wait_for_token(self, *, override: float=None) -> None:
         """
         Block the context until a token is available.
         """
         await asyncio.sleep(override or self.burst)
 
-    async def request(self, *a, backoff_: int=0, **kw):
+    async def request(self, *a, backoff_: int=0, **kw) -> httpx.Response:
         """
         Make a request, adjusting tokens if necessary.
+
+        Parameters
+        ----------
+        backoff_ : int, default 0
+          linear factor to wait in between retries in case of an error
+
+        *args, **kwargs
+          passed through to the request method
         """
         r = await super().request(*a, **kw)
 
@@ -132,6 +141,243 @@ class Stratz(RateLimitedHTTPClient):
         data = resp.json()['data']['constants']
         return [GameVersion(**v) for v in data['game_version']]
 
+    async def heroes(self, *, patch_id: int=69) -> List[HeroHistory]:
+        """
+        Return a list of heroes.
+
+        Parameters
+        ----------
+        patch_id : int
+          game version to get hero stats on
+        """
+        q = """
+        query Heroes {
+          constants {
+            heroes (gameVersionId: $patch_id, language: ENGLISH) {
+              hero_id: id
+              hero_internal_name: shortName
+              hero_display_name: displayName
+              patch_id: gameVersionId
+              parse_stats: stats {
+                primary_attribute: primaryAttribute
+                mana_regen_base: mpRegen
+                strength_base: strengthBase
+                strength_gain: strengthGain
+                agility_base: agilityBase
+                agility_gain: agilityGain
+                intelligence_base: intelligenceBase
+                intelligence_gain: intelligenceGain
+                attack_type: attackType
+                attack_range: attackRange
+                attack_animation: attackAnimationPoint
+                base_attack_time: attackRate
+                is_captains_mode: cMEnabled
+                movespeed: moveSpeed
+                turn_rate: moveTurnRate
+                armor_base: startingArmor
+                magic_armor_base: startingMagicArmor
+                damage_base_max: startingDamageMax
+                damage_base_min: startingDamageMin
+                vision_range_day: visionDaytimeRange
+                vision_range_night: visionNighttimeRange
+
+                # true for dire, false for radiant
+                faction: team
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        heroes = []
+
+        for hero in resp.json()['data']['constants']['heroes']:
+            # hero wasn't yet released in this patch
+            if hero['parse_stats'] is None or None in hero['parse_stats'].values():
+                continue
+
+            h = {
+                **{k: v for k, v in hero.items() if not k.startswith('parse_')},
+                **hero['parse_stats']
+            }
+
+            heroes.append(h)
+
+        return [HeroHistory(**v) for v in heroes]
+
+    async def items(self, *, patch_id: int=69) -> List[ItemHistory]:
+        """
+        Return a list of items.
+
+        Parameters
+        ----------
+        patch_id : int
+          game version to get item stats on
+        """
+        q = """
+        query Items {
+          constants {
+            items (gameVersionId: $patch_id, language: ENGLISH) {
+              item_id: id
+              item_internal_name: shortName
+              item_display_name: displayName
+              parse_stats: stat {
+                cost
+                is_recipe: isRecipe
+                is_side_shop: isSideShop
+                quality
+                unit_target_flags: unitTargetFlags
+                unit_target_team: unitTargetTeam
+                unit_target_type: unitTargetType
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        items = []
+
+        for item in resp.json()['data']['constants']['items']:
+            # item wasn't yet released in this patch
+            if item['parse_stats'] is None or None in item['parse_stats'].values():
+                continue
+
+            i = {
+                'patch_id': patch_id,
+                **{k: v for k, v in item.items() if not k.startswith('parse_')},
+                **item['parse_stats']
+            }
+
+            items.append(i)
+
+        return [ItemHistory(**v) for v in items]
+
+    async def npcs(self, *, patch_id: int=69) -> List[NPCHistory]:
+        """
+        Return a list of npcs.
+
+        Parameters
+        ----------
+        patch_id : int
+          game version to get npc stats on
+        """
+        q = """
+        query NPCs {
+          constants {
+            npcs (gameVersionId: $patch_id) {
+              npc_id: id
+              npc_internal_name: name
+              parse_stats: stat {
+                combat_class_attack: combatClassAttack
+                combat_class_defend: combatClassDefend
+                is_ancient: isAncient
+                is_neutral: isNeutralUnitType
+                health: statusHealth
+                mana: statusMana
+                faction: teamName
+                unit_relationship_class: unitRelationshipClass
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        npcs = []
+
+        for npc in resp.json()['data']['constants']['npcs']:
+            # npc wasn't yet released in this patch
+            if npc['parse_stats'] is None or None in npc['parse_stats'].values():
+                continue
+
+            i = {
+                'patch_id': patch_id,
+                **{k: v for k, v in npc.items() if not k.startswith('parse_')},
+                **npc['parse_stats']
+            }
+
+            npcs.append(i)
+
+        return [NPCHistory(**v) for v in npcs]
+
+    async def abilities(self, *, patch_id: int=69) -> List[AbilityHistory]:
+        """
+        Return a list of abilities.
+
+        Parameters
+        ----------
+        patch_id : int
+          game version to get ability stats on
+        """
+        q = """
+        query Abilities {
+          constants {
+            abilities (gameVersionId: $patch_id, language: ENGLISH) {
+              ability_id: id
+              ability_internal_name: name
+              is_talent: isTalent
+              parse_language: language {
+                ability_display_name: displayName
+              }
+              parse_stats: stat {
+                has_scepter_upgrade: hasScepterUpgrade
+                is_scepter_upgrade: isGrantedByScepter
+                is_aghanims_shard: isGrantedByShard
+                is_ultimate: isUltimate
+                required_level: requiredLevel
+                ability_type: type
+                ability_damage_type: unitDamageType
+                unit_target_flags: unitTargetFlags
+                unit_target_team: unitTargetTeam
+                unit_target_type: unitTargetType
+              }
+            }
+          }
+        }
+        """
+        resp = await self.query(q, patch_id=patch_id)
+        abilities = []
+
+        for ability in resp.json()['data']['constants']['abilities']:
+            # ignore base abilities
+            if ability['ability_internal_name'] is None:
+                continue
+
+            # ability wasn't yet released in this patch
+            if ability['parse_stats'] is None or None in ability['parse_stats'].values():
+                continue
+
+            a = {
+                'patch_id': patch_id,
+                **{k: v for k, v in ability.items() if not k.startswith('parse_')},
+                **ability['parse_stats'],
+                **{k: v for k, v in ability.items() if not k == 'parse_language' and v is not None}
+            }
+
+            abilities.append(a)
+
+        return [AbilityHistory(**v) for v in abilities]
+
+    async def reparse(self, *, replay_salts: List[int]) -> None:
+        """
+        Ask STRATZ to reparse a given replay.
+
+        Parameters
+        ----------
+        replay_salts : list[int, ...]
+          matches to reparse
+        """
+        q = """
+        query {
+          stratz {
+            matchRetry(id: $replay_salt)
+          }
+        }
+        """
+        for salt in replay_salts:
+            r = await self.query(q, replay_salt=salt)
+            r = r.json()['data']['stratz']['matchRetry']
+            log.info(f'reparsing salt, {salt}: {r}')
+
     async def tournaments(self) -> List[Tournament]:
         """
         Return a list of tournaments.
@@ -173,7 +419,25 @@ class Stratz(RateLimitedHTTPClient):
 
     async def tournament_matches(self, *, league_id: int) -> List[Union[Match, IncompleteMatch]]:
         """
+        Return a list of Matches for a given tournament.
+
+        Matches returned will either be fully parsed and of type
+        stratz.schema.Match, or an error was found while parsing and
+        will be of type stratz.schema.IncompleteMatch.
+
+        Parameters
+        ----------
+        league_id : int
+          tournament to parse matches from
         """
+        # Match is a composable object.
+        # Match.tournament ...... Tournament
+        # Match.teams ........... CompetitiveTeam
+        # Match.accounts ........ Account
+        # Match.draft ........... MatchDraft
+        # Match.players ......... MatchPlayer
+        # Match.hero_movements .. HeroMovement
+        # Match.events .......... MatchEvent
         q = """
         query TournamentMatches {
           tournament_matches: league(id: $league_id) {
@@ -214,23 +478,18 @@ class Stratz(RateLimitedHTTPClient):
 
         return matches
 
-    async def reparse(self, *, replay_salts: List[int]) -> None:
-        """
-        """
-        q = """
-        query {
-          stratz {
-            matchRetry(id: $replay_salt)
-          }
-        }
-        """
-        for salt in replay_salts:
-            r = await self.query(q, replay_salt=salt)
-            r = r.json()['data']['stratz']['matchRetry']
-            print(f'reparsing salt {salt}: {r}')
-
     async def matches(self, *, match_ids: List[int]) -> List[Union[Match, IncompleteMatch]]:
         """
+        Return a list of Matches.
+
+        Matches returned will either be fully parsed and of type
+        stratz.schema.Match, or an error was found while parsing and
+        will be of type stratz.schema.IncompleteMatch.
+
+        Parameters
+        ----------
+        match_ids : List[int, ...]
+          ids of matches to parse
         """
         # Match is a composable object.
         # Match.tournament ...... Tournament
@@ -349,6 +608,11 @@ class Stratz(RateLimitedHTTPClient):
     async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:
         """
         Return a list of competitive teams.
+
+        Parameters
+        ----------
+        team_ids : List[int, ...]
+          ids of teams to parse
         """
         q = """
         query CompetitiveTeams {
@@ -363,202 +627,6 @@ class Stratz(RateLimitedHTTPClient):
         resp = await self.query(q, teams=team_ids)
         data = resp.json()['data']
         return [CompetitiveTeam(**v) for v in data['competitive_teams']]
-
-    async def heroes(self, *, patch_id: int=69) -> List[HeroHistory]:
-        """
-        Return a list of Heroes.
-        """
-        q = """
-        query Heroes {
-          constants {
-            heroes (gameVersionId: $patch_id, language: ENGLISH) {
-              hero_id: id
-              hero_internal_name: shortName
-              hero_display_name: displayName
-              patch_id: gameVersionId
-              parse_stats: stats {
-                primary_attribute: primaryAttribute
-                mana_regen_base: mpRegen
-                strength_base: strengthBase
-                strength_gain: strengthGain
-                agility_base: agilityBase
-                agility_gain: agilityGain
-                intelligence_base: intelligenceBase
-                intelligence_gain: intelligenceGain
-                attack_type: attackType
-                attack_range: attackRange
-                attack_animation: attackAnimationPoint
-                base_attack_time: attackRate
-                is_captains_mode: cMEnabled
-                movespeed: moveSpeed
-                turn_rate: moveTurnRate
-                armor_base: startingArmor
-                magic_armor_base: startingMagicArmor
-                damage_base_max: startingDamageMax
-                damage_base_min: startingDamageMin
-                vision_range_day: visionDaytimeRange
-                vision_range_night: visionNighttimeRange
-
-                # true for dire, false for radiant
-                faction: team
-              }
-            }
-          }
-        }
-        """
-        resp = await self.query(q, patch_id=patch_id)
-        heroes = []
-
-        for hero in resp.json()['data']['constants']['heroes']:
-            # hero wasn't yet released in this patch
-            if hero['parse_stats'] is None or None in hero['parse_stats'].values():
-                continue
-
-            h = {
-                **{k: v for k, v in hero.items() if not k.startswith('parse_')},
-                **hero['parse_stats']
-            }
-
-            heroes.append(h)
-
-        return [HeroHistory(**v) for v in heroes]
-
-    async def items(self, *, patch_id: int=69) -> List[ItemHistory]:
-        """
-        Return a list of Items.
-        """
-        q = """
-        query Items {
-          constants {
-            items (gameVersionId: $patch_id, language: ENGLISH) {
-              item_id: id
-              item_internal_name: shortName
-              item_display_name: displayName
-              parse_stats: stat {
-                cost
-                is_recipe: isRecipe
-                is_side_shop: isSideShop
-                quality
-                unit_target_flags: unitTargetFlags
-                unit_target_team: unitTargetTeam
-                unit_target_type: unitTargetType
-              }
-            }
-          }
-        }
-        """
-        resp = await self.query(q, patch_id=patch_id)
-        items = []
-
-        for item in resp.json()['data']['constants']['items']:
-            # item wasn't yet released in this patch
-            if item['parse_stats'] is None or None in item['parse_stats'].values():
-                continue
-
-            i = {
-                'patch_id': patch_id,
-                **{k: v for k, v in item.items() if not k.startswith('parse_')},
-                **item['parse_stats']
-            }
-
-            items.append(i)
-
-        return [ItemHistory(**v) for v in items]
-
-    async def npcs(self, *, patch_id=69) -> List[NPCHistory]:
-        """
-        Return a list of NPCs.
-        """
-        q = """
-        query NPCs {
-          constants {
-            npcs (gameVersionId: $patch_id) {
-              npc_id: id
-              npc_internal_name: name
-              parse_stats: stat {
-                combat_class_attack: combatClassAttack
-                combat_class_defend: combatClassDefend
-                is_ancient: isAncient
-                is_neutral: isNeutralUnitType
-                health: statusHealth
-                mana: statusMana
-                faction: teamName
-                unit_relationship_class: unitRelationshipClass
-              }
-            }
-          }
-        }
-        """
-        resp = await self.query(q, patch_id=patch_id)
-        npcs = []
-
-        for npc in resp.json()['data']['constants']['npcs']:
-            # npc wasn't yet released in this patch
-            if npc['parse_stats'] is None or None in npc['parse_stats'].values():
-                continue
-
-            i = {
-                'patch_id': patch_id,
-                **{k: v for k, v in npc.items() if not k.startswith('parse_')},
-                **npc['parse_stats']
-            }
-
-            npcs.append(i)
-
-        return [NPCHistory(**v) for v in npcs]
-
-    async def abilities(self, *, patch_id=69) -> List[AbilityHistory]:
-        """
-        Return a list of Abilities.
-        """
-        q = """
-        query Abilities {
-          constants {
-            abilities (gameVersionId: $patch_id, language: ENGLISH) {
-              ability_id: id
-              ability_internal_name: name
-              is_talent: isTalent
-              parse_language: language {
-                ability_display_name: displayName
-              }
-              parse_stats: stat {
-                has_scepter_upgrade: hasScepterUpgrade
-                is_scepter_upgrade: isGrantedByScepter
-                is_aghanims_shard: isGrantedByShard
-                is_ultimate: isUltimate
-                required_level: requiredLevel
-                ability_type: type
-                ability_damage_type: unitDamageType
-                unit_target_flags: unitTargetFlags
-                unit_target_team: unitTargetTeam
-                unit_target_type: unitTargetType
-              }
-            }
-          }
-        }
-        """
-        resp = await self.query(q, patch_id=patch_id)
-        abilities = []
-
-        for ability in resp.json()['data']['constants']['abilities']:
-            # ignore base abilities
-            if ability['ability_internal_name'] is None:
-                continue
-
-            # ability wasn't yet released in this patch
-            if ability['parse_stats'] is None or None in ability['parse_stats'].values():
-                continue
-
-            a = {
-                'patch_id': patch_id,
-                **{k: v for k, v in ability.items() if not k.startswith('parse_')},
-                **ability['parse_stats'],
-                **{k: v for k, v in ability.items() if not k == 'parse_language' and v is not None}
-            }
-
-            abilities.append(a)
-
-        return [AbilityHistory(**v) for v in abilities]
 
     def __repr__(self) -> str:
         return f'<StratzClient {self.rate}r/s>'
