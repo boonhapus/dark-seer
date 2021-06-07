@@ -1,13 +1,13 @@
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from darskeer.informants.stratz import schema
+from darkseer.informants.stratz import schema
 from darkseer.informants import Stratz
 from darkseer.database import Database
 from darkseer.models import (
     GameVersion, Tournament, Account,
     Hero, HeroHistory, Item, ItemHistory, NPC, NPCHistory, Ability, AbilityHistory,
-    Match, CompetitiveTeam, MatchDraft, MatchPlayer, HeroMovement  # , MatchEvent
+    Match, CompetitiveTeam, MatchDraft, MatchPlayer, MatchHeroMovement  # , MatchEvent
 )
 from darkseer.util import upsert, chunks
 from typer import Argument as A_, Option as O_
@@ -90,7 +90,7 @@ async def write_matches(sess, r):
 
     x = unique([x for m in r for x in (m['hero_movements'] or [])])
     for chunk in chunks(x, n=5000):
-        stmt = upsert(HeroMovement).values(chunk)
+        stmt = upsert(MatchHeroMovement).values(chunk)
         await sess.execute(stmt)
 
     # stmt = upsert(MatchEvent).values([e for m in r for e in m['events']])
