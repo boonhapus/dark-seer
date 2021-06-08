@@ -3,6 +3,7 @@ import logging
 import asyncio
 
 from pydantic import ValidationError
+from glom import glom, SKIP
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
@@ -135,17 +136,24 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query Patches {
           constants {
-            game_version: gameVersions {
-              patch_id: id
-              patch: name
-              release_datetime: asOfDateTime
+            gameVersions {
+              id
+              name
+              asOfDateTime
             }
           }
         }
         """
         resp = await self.query(q)
-        data = resp.json()['data']['constants']
-        return [GameVersion(**v) for v in data['game_version']]
+        spec = (
+            'data.constants.gameVersions', [{
+                'patch_id': 'id',
+                'patch': 'name',
+                'release_datetime': 'asOfDateTime'
+            }]
+        )
+        data = glom(resp.json(), spec)
+        return [GameVersion(**v) for v in data]
 
     async def heroes(self, *, patch_id: int=69) -> List[HeroHistory]:
         """
@@ -195,21 +203,45 @@ class Stratz(RateLimitedHTTPClient):
         }
         """
         resp = await self.query(q, patch_id=patch_id)
-        heroes = []
-
-        for hero in resp.json()['data']['constants']['heroes']:
-            # hero wasn't yet released in this patch
-            if hero['parse_stats'] is None or None in hero['parse_stats'].values():
-                continue
-
-            h = {
-                **{k: v for k, v in hero.items() if not k.startswith('parse_')},
-                **hero['parse_stats']
-            }
-
-            heroes.append(h)
-
-        return [HeroHistory(**v) for v in heroes]
+        spec = (
+            # this spec will skip items if they error out
+            'data.constants.heroes', [
+                lambda x: glom(
+                    x,
+                    {
+                        'hero_id': 'hero_id',
+                        'patch_id': 'patch_id',
+                        'hero_internal_name': 'hero_internal_name',
+                        'hero_display_name': 'hero_display_name',
+                        'primary_attribute': 'parse_stats.primary_attribute',
+                        'mana_regen_base': 'parse_stats.mana_regen_base',
+                        'strength_base': 'parse_stats.strength_base',
+                        'strength_gain': 'parse_stats.strength_gain',
+                        'agility_base': 'parse_stats.agility_base',
+                        'agility_gain': 'parse_stats.agility_gain',
+                        'intelligence_base': 'parse_stats.intelligence_base',
+                        'intelligence_gain': 'parse_stats.intelligence_gain',
+                        'base_attack_time': 'parse_stats.base_attack_time',
+                        'attack_range': 'parse_stats.attack_range',
+                        'base_attack_time': 'parse_stats.base_attack_time',
+                        'attack_type': 'parse_stats.attack_type',
+                        'is_captains_mode': 'parse_stats.is_captains_mode',
+                        'movespeed': 'parse_stats.movespeed',
+                        'turn_rate': 'parse_stats.turn_rate',
+                        'armor_base': 'parse_stats.armor_base',
+                        'magic_armor_base': 'parse_stats.magic_armor_base',
+                        'damage_base_max': 'parse_stats.damage_base_max',
+                        'damage_base_min': 'parse_stats.damage_base_min',
+                        'faction': 'parse_stats.faction',
+                        'vision_range_day': 'parse_stats.vision_range_day',
+                        'vision_range_night': 'parse_stats.vision_range_night'
+                    },
+                    default=SKIP
+                )
+            ]
+        )
+        data = glom(resp.json(), spec)
+        return [HeroHistory(**v) for v in data]
 
     async def items(self, *, patch_id: int=69) -> List[ItemHistory]:
         """
