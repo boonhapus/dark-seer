@@ -405,8 +405,8 @@ async def ability(
 @db_options
 @_coro
 async def setup_database(
-    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
-    since: bool=O_(False, '--since', help='Get data on all patches since.'),
+    patch: str=O_('7.00', help='Game Version of the Hero to get data for.'),
+    since: bool=O_(True, '--since', help='Get data on all patches since.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -414,6 +414,15 @@ async def setup_database(
     **db_options
 ):
     """
+    Setup the Darkseer database.
+
+    This command defaults to all dimensional data since patch 7.00, which includes:
+      - Patches
+      - Heroes
+      - Items
+      - Abilities
+      - NPCs
+      - Tournaments (all available from STRATZ)
     """
     db = Database(**db_options)
 
