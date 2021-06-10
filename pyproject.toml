@@ -19,7 +19,7 @@ rich = "*"
 typer = "*"
 toml = "*"
 aiofiles = "*"
-glom = "^20.11.0"
+glom = "*"
 
 [tool.poetry.dev-dependencies]
 ipykernel = "^5.2.0"
