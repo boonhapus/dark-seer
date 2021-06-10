@@ -3,7 +3,7 @@ import logging
 import asyncio
 
 from pydantic import ValidationError
-from glom import glom, SKIP
+from glom import glom, Val, SKIP
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
@@ -256,39 +256,47 @@ class Stratz(RateLimitedHTTPClient):
         query Items {
           constants {
             items (gameVersionId: $patch_id, language: ENGLISH) {
-              item_id: id
-              item_internal_name: shortName
-              item_display_name: displayName
+              id
+              shortName
+              displayName
               parse_stats: stat {
                 cost
-                is_recipe: isRecipe
-                is_side_shop: isSideShop
+                isRecipe
+                isSideShop
                 quality
-                unit_target_flags: unitTargetFlags
-                unit_target_team: unitTargetTeam
-                unit_target_type: unitTargetType
+                unitTargetFlags
+                unitTargetTeam
+                unitTargetType
               }
             }
           }
         }
         """
         resp = await self.query(q, patch_id=patch_id)
-        items = []
-
-        for item in resp.json()['data']['constants']['items']:
-            # item wasn't yet released in this patch
-            if item['parse_stats'] is None or None in item['parse_stats'].values():
-                continue
-
-            i = {
-                'patch_id': patch_id,
-                **{k: v for k, v in item.items() if not k.startswith('parse_')},
-                **item['parse_stats']
-            }
-
-            items.append(i)
-
-        return [ItemHistory(**v) for v in items]
+        spec = (
+            # this spec will skip items if they error out
+            'data.constants.items', [
+                lambda x: glom(
+                    x,
+                    {
+                        'item_id': 'id',
+                        'patch_id': Val(patch_id),
+                        'item_internal_name': 'shortName',
+                        'item_display_name': 'displayName',
+                        'cost': 'parse_stats.cost',
+                        'is_recipe': 'parse_stats.isRecipe',
+                        'is_side_shop': 'parse_stats.isSideShop',
+                        'quality': 'parse_stats.quality',
+                        'unit_target_flags': 'parse_stats.unitTargetFlags',
+                        'unit_target_team': 'parse_stats.unitTargetTeam',
+                        'unit_target_type': 'parse_stats.unitTargetType'
+                    },
+                    default=SKIP
+                )
+            ]
+        )
+        data = glom(resp.json(), spec)
+        return [ItemHistory(**v) for v in data]
 
     async def npcs(self, *, patch_id: int=69) -> List[NPCHistory]:
         """
@@ -303,39 +311,47 @@ class Stratz(RateLimitedHTTPClient):
         query NPCs {
           constants {
             npcs (gameVersionId: $patch_id) {
-              npc_id: id
-              npc_internal_name: name
+              id
+              name
               parse_stats: stat {
-                combat_class_attack: combatClassAttack
-                combat_class_defend: combatClassDefend
-                is_ancient: isAncient
-                is_neutral: isNeutralUnitType
-                health: statusHealth
-                mana: statusMana
-                faction: teamName
-                unit_relationship_class: unitRelationshipClass
+                combatClassAttack
+                combatClassDefend
+                isAncient
+                isNeutralUnitType
+                statusHealth
+                statusMana
+                teamName
+                unitRelationshipClass
               }
             }
           }
         }
         """
         resp = await self.query(q, patch_id=patch_id)
-        npcs = []
-
-        for npc in resp.json()['data']['constants']['npcs']:
-            # npc wasn't yet released in this patch
-            if npc['parse_stats'] is None or None in npc['parse_stats'].values():
-                continue
-
-            i = {
-                'patch_id': patch_id,
-                **{k: v for k, v in npc.items() if not k.startswith('parse_')},
-                **npc['parse_stats']
-            }
-
-            npcs.append(i)
-
-        return [NPCHistory(**v) for v in npcs]
+        spec = (
+            # this spec will skip npcs if they error out
+            'data.constants.npcs', [
+                lambda x: glom(
+                    x,
+                    {
+                        'npc_id': 'id',
+                        'patch_id': Val(patch_id),
+                        'npc_internal_name': 'name',
+                        'combat_class_attack': 'parse_stats.combatClassAttack',
+                        'combat_class_defend': 'parse_stats.combatClassDefend',
+                        'is_ancient': 'parse_stats.isAncient',
+                        'is_neutral': 'parse_stats.isNeutralUnitType',
+                        'health': 'parse_stats.statusHealth',
+                        'mana': 'parse_stats.statusMana',
+                        'faction': 'parse_stats.teamName',
+                        'unit_relationship_class': 'parse_stats.unitRelationshipClass'
+                    },
+                    default=SKIP
+                )
+            ]
+        )
+        data = glom(resp.json(), spec)
+        return [NPCHistory(**v) for v in data]
 
     async def abilities(self, *, patch_id: int=69) -> List[AbilityHistory]:
         """
@@ -350,50 +366,57 @@ class Stratz(RateLimitedHTTPClient):
         query Abilities {
           constants {
             abilities (gameVersionId: $patch_id, language: ENGLISH) {
-              ability_id: id
-              ability_internal_name: name
-              is_talent: isTalent
+              id
+              name
               parse_language: language {
-                ability_display_name: displayName
+                displayName
               }
+              isTalent
               parse_stats: stat {
-                has_scepter_upgrade: hasScepterUpgrade
-                is_scepter_upgrade: isGrantedByScepter
-                is_aghanims_shard: isGrantedByShard
-                is_ultimate: isUltimate
-                required_level: requiredLevel
-                ability_type: type
-                ability_damage_type: unitDamageType
-                unit_target_flags: unitTargetFlags
-                unit_target_team: unitTargetTeam
-                unit_target_type: unitTargetType
+                hasScepterUpgrade
+                isGrantedByScepter
+                isGrantedByShard
+                isUltimate
+                requiredLevel
+                type
+                unitDamageType
+                unitTargetFlags
+                unitTargetTeam
+                unitTargetType
               }
             }
           }
         }
         """
         resp = await self.query(q, patch_id=patch_id)
-        abilities = []
-
-        for ability in resp.json()['data']['constants']['abilities']:
-            # ignore base abilities
-            if ability['ability_internal_name'] is None:
-                continue
-
-            # ability wasn't yet released in this patch
-            if ability['parse_stats'] is None or None in ability['parse_stats'].values():
-                continue
-
-            a = {
-                'patch_id': patch_id,
-                **{k: v for k, v in ability.items() if not k.startswith('parse_')},
-                **ability['parse_stats'],
-                **{k: v for k, v in ability.items() if not k == 'parse_language' and v is not None}
-            }
-
-            abilities.append(a)
-
-        return [AbilityHistory(**v) for v in abilities]
+        spec = (
+            # this spec will skip abilities if they error out
+            'data.constants.abilities', [
+                lambda x: glom(
+                    x,
+                    {
+                        'ability_id': 'id',
+                        'patch_id': Val(patch_id),
+                        'ability_internal_name': 'name',
+                        'ability_display_name': 'parse_language.displayName',
+                        'is_talent': 'isTalent',
+                        'is_ultimate': 'parse_stats.hasScepterUpgrade',
+                        'has_scepter_upgrade': 'parse_stats.isGrantedByScepter',
+                        'is_scepter_upgrade': 'parse_stats.isGrantedByShard',
+                        'is_aghanims_shard': 'parse_stats.isUltimate',
+                        'required_level': 'parse_stats.requiredLevel',
+                        'ability_type': 'parse_stats.type',
+                        'ability_damage_type': 'parse_stats.unitDamageType',
+                        'unit_target_flags': 'parse_stats.unitTargetFlags',
+                        'unit_target_team': 'parse_stats.unitTargetTeam',
+                        'unit_target_type': 'parse_stats.unitTargetType',
+                    },
+                    default=SKIP
+                )
+            ]
+        )
+        data = glom(resp.json(), spec)
+        return [AbilityHistory(**v) for v in data]
 
     async def reparse(self, *, replay_salts: List[int]) -> None:
         """
@@ -430,12 +453,12 @@ class Stratz(RateLimitedHTTPClient):
                 DPC_QUALIFIER, DPC_LEAGUE_QUALIFIER, DPC_LEAGUE
               ]
             }) {
-            league_id: id
-            league_name: displayName
-            league_start_date: startDateTime
-            league_end_date: endDateTime
+            id
+            displayName
+            startDateTime
+            endDateTime
             tier
-            prize_pool: prizePool
+            prizePool
           }
         }
         """
@@ -444,13 +467,20 @@ class Stratz(RateLimitedHTTPClient):
         while True:
             skip = len(leagues)
             resp = await self.query(q, skip_value=skip)
-            data = resp.json()['data']
+            spec = (
+                'data.tournaments', [{
+                    'league_id': 'id',
+                    'league_name': 'displayName',
+                    'league_start_date': 'startDateTime',
+                    'league_end_date': 'endDateTime',
+                    'tier': 'tier',
+                    'prize_pool': 'prizePool'
+                }]
+            )
+            data = glom(resp.json(), spec)
+            leagues.extend([d for d in data if d not in leagues])
 
-            for v in data['tournaments']:
-                if v not in leagues:
-                    leagues.append(v)
-
-            if not data['tournaments']:
+            if not data:
                 break
 
         return [Tournament(**v) for v in leagues]
@@ -479,36 +509,33 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query TournamentMatches {
           tournament_matches: league(id: $league_id) {
-            league_name: displayName
             matches(request: {
               skip: $skip_value,
               take: 50,
               isParsed: true
             }) {
-              match_id: id
+              id
             }
           }
         }
         """
-        _match_ids = []
+        match_ids = set()
 
         # Get all Match IDs for all tournaments.
         while True:
-            skip = len(_match_ids)
+            skip = len(match_ids)
             resp = await self.query(q, league_id=league_id, skip_value=skip)
-            data = resp.json()['data']
+            spec = ('data.tournament_matches.matches', ['id'])
+            data = glom(resp.json(), spec)
+            match_ids.update(data)
 
-            for v in data['tournament_matches']['matches']:
-                if v['match_id'] not in _match_ids:
-                    _match_ids.append(v['match_id'])
-
-            if not data['tournament_matches']['matches']:
+            if not data:
                 break
 
         matches = []
 
         # Get all matches
-        for chunk in chunks(_match_ids, n=10):
+        for chunk in chunks(match_ids, n=10):
             r = await self.matches(match_ids=chunk)
             matches.extend(r)
 
@@ -652,16 +679,24 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query CompetitiveTeams {
           competitive_teams: teams(teamIds: $teams) {
-            team_id: id
-            team_name: name
-            team_tag: tag
-            created: dateCreated
+            id
+            name
+            tag
+            dateCreated
           }
         }
         """
         resp = await self.query(q, teams=team_ids)
-        data = resp.json()['data']
-        return [CompetitiveTeam(**v) for v in data['competitive_teams']]
+        spec = (
+            'data.competitive_teams', [{
+                'team_id': 'id',
+                'team_name': 'name',
+                'team_tag': 'tag',
+                'created': 'dateCreated',
+            }]
+        )
+        data = glom(resp.json(), spec)
+        return [CompetitiveTeam(**v) for v in data]
 
     def __repr__(self) -> str:
         return f'<StratzClient {self.rate}r/s>'
