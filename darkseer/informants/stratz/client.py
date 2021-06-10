@@ -96,8 +96,8 @@ class Stratz(RateLimitedHTTPClient):
 
             await self.wait_for_token(override=override)
             r = await self.request(*a, backoff_=backoff_, **kw)
-
-        self.tokens = int(r.headers['x-ratelimit-remaining-hour'])
+        else:
+            self.tokens = int(r.headers['x-ratelimit-remaining-hour'])
 
         if self.tokens <= 25:
             log.warning(f'approaching rate limit, requests left: {self.tokens}')
