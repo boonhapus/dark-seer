@@ -189,8 +189,8 @@ class HeroHistory(Base):
     intelligence_base: float
     intelligence_gain: float
     base_attack_time: float
+    attack_point: float
     attack_range: int
-    base_attack_time: float
     attack_type: str
     is_captains_mode: bool
     movespeed: int
