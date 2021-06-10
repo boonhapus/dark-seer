@@ -181,10 +181,10 @@ class Stratz(RateLimitedHTTPClient):
                 agility_gain: agilityGain
                 intelligence_base: intelligenceBase
                 intelligence_gain: intelligenceGain
+                base_attack_time: attackRate
+                attack_point: attackAnimationPoint
                 attack_type: attackType
                 attack_range: attackRange
-                attack_animation: attackAnimationPoint
-                base_attack_time: attackRate
                 is_captains_mode: cMEnabled
                 movespeed: moveSpeed
                 turn_rate: moveTurnRate
@@ -222,8 +222,8 @@ class Stratz(RateLimitedHTTPClient):
                         'intelligence_base': 'parse_stats.intelligence_base',
                         'intelligence_gain': 'parse_stats.intelligence_gain',
                         'base_attack_time': 'parse_stats.base_attack_time',
+                        'attack_point': 'parse_stats.attack_point',
                         'attack_range': 'parse_stats.attack_range',
-                        'base_attack_time': 'parse_stats.base_attack_time',
                         'attack_type': 'parse_stats.attack_type',
                         'is_captains_mode': 'parse_stats.is_captains_mode',
                         'movespeed': 'parse_stats.movespeed',
