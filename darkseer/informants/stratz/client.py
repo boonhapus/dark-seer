@@ -3,7 +3,7 @@ import logging
 import asyncio
 
 from pydantic import ValidationError
-from glom import glom, Val, SKIP
+from glom import glom, Val, Or, SKIP
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
@@ -202,44 +202,38 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
+        HERO_SPEC = {
+            'hero_id': 'hero_id',
+            'patch_id': 'patch_id',
+            'hero_internal_name': 'hero_internal_name',
+            'hero_display_name': 'hero_display_name',
+            'primary_attribute': 'parse_stats.primary_attribute',
+            'mana_regen_base': 'parse_stats.mana_regen_base',
+            'strength_base': 'parse_stats.strength_base',
+            'strength_gain': 'parse_stats.strength_gain',
+            'agility_base': 'parse_stats.agility_base',
+            'agility_gain': 'parse_stats.agility_gain',
+            'intelligence_base': 'parse_stats.intelligence_base',
+            'intelligence_gain': 'parse_stats.intelligence_gain',
+            'base_attack_time': 'parse_stats.base_attack_time',
+            'attack_point': 'parse_stats.attack_point',
+            'attack_range': 'parse_stats.attack_range',
+            'attack_type': 'parse_stats.attack_type',
+            'is_captains_mode': 'parse_stats.is_captains_mode',
+            'movespeed': 'parse_stats.movespeed',
+            'turn_rate': 'parse_stats.turn_rate',
+            'armor_base': 'parse_stats.armor_base',
+            'magic_armor_base': 'parse_stats.magic_armor_base',
+            'damage_base_max': 'parse_stats.damage_base_max',
+            'damage_base_min': 'parse_stats.damage_base_min',
+            'faction': 'parse_stats.faction',
+            'vision_range_day': 'parse_stats.vision_range_day',
+            'vision_range_night': 'parse_stats.vision_range_night'
+        }
+
+        # skip items if they error out
         resp = await self.query(q, patch_id=patch_id)
-        spec = (
-            # this spec will skip items if they error out
-            'data.constants.heroes', [
-                lambda x: glom(
-                    x,
-                    {
-                        'hero_id': 'hero_id',
-                        'patch_id': 'patch_id',
-                        'hero_internal_name': 'hero_internal_name',
-                        'hero_display_name': 'hero_display_name',
-                        'primary_attribute': 'parse_stats.primary_attribute',
-                        'mana_regen_base': 'parse_stats.mana_regen_base',
-                        'strength_base': 'parse_stats.strength_base',
-                        'strength_gain': 'parse_stats.strength_gain',
-                        'agility_base': 'parse_stats.agility_base',
-                        'agility_gain': 'parse_stats.agility_gain',
-                        'intelligence_base': 'parse_stats.intelligence_base',
-                        'intelligence_gain': 'parse_stats.intelligence_gain',
-                        'base_attack_time': 'parse_stats.base_attack_time',
-                        'attack_point': 'parse_stats.attack_point',
-                        'attack_range': 'parse_stats.attack_range',
-                        'attack_type': 'parse_stats.attack_type',
-                        'is_captains_mode': 'parse_stats.is_captains_mode',
-                        'movespeed': 'parse_stats.movespeed',
-                        'turn_rate': 'parse_stats.turn_rate',
-                        'armor_base': 'parse_stats.armor_base',
-                        'magic_armor_base': 'parse_stats.magic_armor_base',
-                        'damage_base_max': 'parse_stats.damage_base_max',
-                        'damage_base_min': 'parse_stats.damage_base_min',
-                        'faction': 'parse_stats.faction',
-                        'vision_range_day': 'parse_stats.vision_range_day',
-                        'vision_range_night': 'parse_stats.vision_range_night'
-                    },
-                    default=SKIP
-                )
-            ]
-        )
+        spec = ('data.constants.heroes', [Or(HERO_SPEC, default=SKIP)])
         data = glom(resp.json(), spec)
         return [HeroHistory(**v) for v in data]
 
@@ -272,29 +266,23 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
+        ITEM_SPEC = {
+            'item_id': 'id',
+            'patch_id': Val(patch_id),
+            'item_internal_name': 'shortName',
+            'item_display_name': 'displayName',
+            'cost': 'parse_stats.cost',
+            'is_recipe': 'parse_stats.isRecipe',
+            'is_side_shop': 'parse_stats.isSideShop',
+            'quality': 'parse_stats.quality',
+            'unit_target_flags': 'parse_stats.unitTargetFlags',
+            'unit_target_team': 'parse_stats.unitTargetTeam',
+            'unit_target_type': 'parse_stats.unitTargetType'
+        }
+
+        # skip items if they error out
         resp = await self.query(q, patch_id=patch_id)
-        spec = (
-            # this spec will skip items if they error out
-            'data.constants.items', [
-                lambda x: glom(
-                    x,
-                    {
-                        'item_id': 'id',
-                        'patch_id': Val(patch_id),
-                        'item_internal_name': 'shortName',
-                        'item_display_name': 'displayName',
-                        'cost': 'parse_stats.cost',
-                        'is_recipe': 'parse_stats.isRecipe',
-                        'is_side_shop': 'parse_stats.isSideShop',
-                        'quality': 'parse_stats.quality',
-                        'unit_target_flags': 'parse_stats.unitTargetFlags',
-                        'unit_target_team': 'parse_stats.unitTargetTeam',
-                        'unit_target_type': 'parse_stats.unitTargetType'
-                    },
-                    default=SKIP
-                )
-            ]
-        )
+        spec = ('data.constants.items', [Or(ITEM_SPEC, default=SKIP)])
         data = glom(resp.json(), spec)
         return [ItemHistory(**v) for v in data]
 
@@ -327,29 +315,23 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
+        NPC_SPEC = {
+            'npc_id': 'id',
+            'patch_id': Val(patch_id),
+            'npc_internal_name': 'name',
+            'combat_class_attack': 'parse_stats.combatClassAttack',
+            'combat_class_defend': 'parse_stats.combatClassDefend',
+            'is_ancient': 'parse_stats.isAncient',
+            'is_neutral': 'parse_stats.isNeutralUnitType',
+            'health': 'parse_stats.statusHealth',
+            'mana': 'parse_stats.statusMana',
+            'faction': 'parse_stats.teamName',
+            'unit_relationship_class': 'parse_stats.unitRelationshipClass'
+        }
+
+        # skip items if they error out
         resp = await self.query(q, patch_id=patch_id)
-        spec = (
-            # this spec will skip npcs if they error out
-            'data.constants.npcs', [
-                lambda x: glom(
-                    x,
-                    {
-                        'npc_id': 'id',
-                        'patch_id': Val(patch_id),
-                        'npc_internal_name': 'name',
-                        'combat_class_attack': 'parse_stats.combatClassAttack',
-                        'combat_class_defend': 'parse_stats.combatClassDefend',
-                        'is_ancient': 'parse_stats.isAncient',
-                        'is_neutral': 'parse_stats.isNeutralUnitType',
-                        'health': 'parse_stats.statusHealth',
-                        'mana': 'parse_stats.statusMana',
-                        'faction': 'parse_stats.teamName',
-                        'unit_relationship_class': 'parse_stats.unitRelationshipClass'
-                    },
-                    default=SKIP
-                )
-            ]
-        )
+        spec = ('data.constants.npcs', [Or(NPC_SPEC, default=SKIP)])
         data = glom(resp.json(), spec)
         return [NPCHistory(**v) for v in data]
 
@@ -388,33 +370,25 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
+        ABILITY_SPEC = {
+            'ability_id': 'id',
+            'patch_id': Val(patch_id),
+            'ability_internal_name': 'name',
+            'ability_display_name': 'parse_language.displayName',
+            'is_talent': 'isTalent',
+            'is_ultimate': 'parse_stats.hasScepterUpgrade',
+            'has_scepter_upgrade': 'parse_stats.isGrantedByScepter',
+            'is_scepter_upgrade': 'parse_stats.isGrantedByShard',
+            'is_aghanims_shard': 'parse_stats.isUltimate',
+            'required_level': 'parse_stats.requiredLevel',
+            'ability_type': 'parse_stats.type',
+            'ability_damage_type': 'parse_stats.unitDamageType',
+            'unit_target_flags': 'parse_stats.unitTargetFlags',
+            'unit_target_team': 'parse_stats.unitTargetTeam',
+            'unit_target_type': 'parse_stats.unitTargetType',
+        }
         resp = await self.query(q, patch_id=patch_id)
-        spec = (
-            # this spec will skip abilities if they error out
-            'data.constants.abilities', [
-                lambda x: glom(
-                    x,
-                    {
-                        'ability_id': 'id',
-                        'patch_id': Val(patch_id),
-                        'ability_internal_name': 'name',
-                        'ability_display_name': 'parse_language.displayName',
-                        'is_talent': 'isTalent',
-                        'is_ultimate': 'parse_stats.hasScepterUpgrade',
-                        'has_scepter_upgrade': 'parse_stats.isGrantedByScepter',
-                        'is_scepter_upgrade': 'parse_stats.isGrantedByShard',
-                        'is_aghanims_shard': 'parse_stats.isUltimate',
-                        'required_level': 'parse_stats.requiredLevel',
-                        'ability_type': 'parse_stats.type',
-                        'ability_damage_type': 'parse_stats.unitDamageType',
-                        'unit_target_flags': 'parse_stats.unitTargetFlags',
-                        'unit_target_team': 'parse_stats.unitTargetTeam',
-                        'unit_target_type': 'parse_stats.unitTargetType',
-                    },
-                    default=SKIP
-                )
-            ]
-        )
+        spec = ('data.constants.abilities', [Or(ABILITY_SPEC, default=SKIP)])
         data = glom(resp.json(), spec)
         return [AbilityHistory(**v) for v in data]
 
