@@ -436,21 +436,20 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
+        TOURNAMENT_SPEC = {
+            'league_id': 'id',
+            'league_name': 'displayName',
+            'league_start_date': 'startDateTime',
+            'league_end_date': 'endDateTime',
+            'tier': 'tier',
+            'prize_pool': 'prizePool'
+        }
         leagues = []
 
         while True:
             skip = len(leagues)
             resp = await self.query(q, skip_value=skip)
-            spec = (
-                'data.tournaments', [{
-                    'league_id': 'id',
-                    'league_name': 'displayName',
-                    'league_start_date': 'startDateTime',
-                    'league_end_date': 'endDateTime',
-                    'tier': 'tier',
-                    'prize_pool': 'prizePool'
-                }]
-            )
+            spec = ('data.tournaments', [TOURNAMENT_SPEC])
             data = glom(resp.json(), spec)
             leagues.extend([d for d in data if d not in leagues])
 
@@ -539,27 +538,27 @@ class Stratz(RateLimitedHTTPClient):
         q = """
         query Matches {
           matches: matches(ids: $match_ids) {
-            match_id: id
-            replay_salt: replaySalt
-            patch_id: gameVersionId
-            league_id: leagueId
-            radiant_team_id: radiantTeamId
-            dire_team_id: direTeamId
-            start_datetime: startDateTime
-            is_stats: isStats
-            winning_faction: didRadiantWin
-            duration: durationSeconds
-            region: regionId
-            lobby_type: lobbyType
-            game_mode: gameMode
+            id
+            replaySalt
+            gameVersionId
+            leagueId
+            radiantTeamId
+            direTeamId
+            startDateTime
+            isStats
+            didRadiantWin
+            durationSeconds
+            regionId
+            lobbyType
+            gameMode
 
             parse_league: league {
-              league_id: id
-              league_name: displayName
-              league_start_date: startDateTime
-              league_end_date: endDateTime
+              id
+              displayName
+              startDateTime
+              endDateTime
               tier
-              prize_pool: prizePool
+              prizePool
             }
             parse_radiant: radiantTeam {
               team_id: id
@@ -620,7 +619,33 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
+        MATCH_SPEC = {
+            'match_id': 'id',
+            'replay_salt': 'replaySalt',
+            'patch_id': 'gameVersionId',
+            'league_id': 'leagueId',
+            'radiant_team_id': 'radiantTeamId',
+            'dire_team_id': 'direTeamId',
+            'start_datetime': 'startDateTime',
+            'is_stats': 'isStats',
+            'winning_faction': 'didRadiantWin',
+            'duration': 'durationSeconds',
+            'region': 'regionId',
+            'lobby_type': 'lobbyType',
+            'game_mode': 'gameMode',
+            'tournament': TOURNAMENT_SPEC,
+            'teams': [...],
+            'draft': [...],
+            'accounts': [...],
+            'players': [...],
+            'hero_movements': [...]
+        }
+        INCOMPLETE_MATCH_SPEC = {
+            'match_id': 'id',
+            'replay_salt': 'replaySalt'
+        }
         resp = await self.query(q, match_ids=match_ids)
+        spec = ('data.matches', [Or(MATCH_SPEC, INCOMPLETE_MATCH_SPEC)])
         matches = []
 
         for match in resp.json()['data']['matches']:
