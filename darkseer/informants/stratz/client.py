@@ -3,7 +3,7 @@ import logging
 import asyncio
 
 from pydantic import ValidationError
-from glom import glom, Val, Or, SKIP
+from glom import glom, T, Call, Val, Or, Coalesce, SKIP
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
@@ -561,35 +561,45 @@ class Stratz(RateLimitedHTTPClient):
               prizePool
             }
             parse_radiant: radiantTeam {
-              team_id: id
-              team_name: name
-              team_tag: tag
-              country_code: countryCode
-              created: dateCreated
+              id
+              name
+              tag
+              countryCode
+              dateCreated
             }
             parse_dire: direTeam {
-              team_id: id
-              team_name: name
-              team_tag: tag
-              country_code: countryCode
-              created: dateCreated
+              id
+              name
+              tag
+              countryCode
+              dateCreated
             }
-            parse_match_players: players {
-              # match_id
-              hero_id: heroId
-              steam_id: steamAccountId
-              slot: playerSlot
-              party_id: partyId
-              is_leaver: leaverStatus
-              # extra data for parsing
-              isRandom
+            parse_match_draft: stats {
+              pick_bans: pickBans {
+                # match_id:
+                heroId
+                # draft_type:
+                order
+                # is_random:
+                # by_steam_id:
+                # extra data for parsing
+                playerIndex
+                isPick
+                bannedHeroId
+                wasBannedSuccessfully
+              }
+            }
+            parse_accounts: players {
               acct: steamAccount {
-                steam_id: id
-                steam_name: name
+                id
+                name
                 is_pro: proSteamAccount {
-                  steam_name: name
+                  name
                 }
               }
+            }
+            parse_hero_movements: players {
+              heroId
               hero_movement: playbackData {
                 positions: playerUpdatePositionEvents {
                   # match_id:
@@ -601,24 +611,75 @@ class Stratz(RateLimitedHTTPClient):
                 }
               }
             }
-            parse_match_draft: stats {
-              pick_bans: pickBans {
-                # match_id:
-                hero_id: heroId
-                # draft_type:
-                draft_order: order
-                # is_random:
-                # by_steam_id:
-                # extra data for parsing
-                playerIndex
-                isPick
-                bannedHeroId
-                wasBannedSuccessfully
-              }
+            parse_match_players: players {
+              # match_id
+              heroId
+              steamAccountId
+              playerSlot
+              partyId
+              leaverStatus
+              # extra data for parsing
+              isRandom
             }
           }
         }
         """
+        from glom import S, M, Invoke, Merge, Flatten, Switch, Match as gMatch
+        from rich import print
+
+        TOURNAMENT_SPEC = {
+            'league_id': 'id',
+            'league_name': 'displayName',
+            'league_start_date': 'startDateTime',
+            'league_end_date': 'endDateTime',
+            'tier': 'tier',
+            'prize_pool': 'prizePool'
+        }
+        TEAM_SPEC = {
+            'team_id': 'id',
+            'team_name': 'name',
+            'team_tag': 'tag',
+            'country_code': 'countryCode',
+            'created': 'dateCreated'
+        }
+        DRAFT_SPEC = {
+            'match_id': S.match_id,
+            'hero_id': 'heroId',
+            'draft_type': (
+                print(T['isPick']),
+                Switch([
+                    (T['isPick'], Val('pick')),
+                    (gMatch(None).matches(T['playerIndex']), Val('system generated ban')),
+                    (not M(T['wasBannedSuccessfully']), Val('ban vote')),
+                    (M == T['wasBannedSuccessfully'], Val('ban'))
+                ], default=Val(-1))
+            ),
+            'draft_order': 'order',
+            'is_random': Val(-1),
+            'by_steam_id': Val(-1)
+        }
+        ACCOUNT_SPEC = {
+            'steam_id': 'id',
+            'steam_name': Coalesce('is_pro.name', 'name')
+        }
+        PLAYER_SPEC = {
+            'match_id': S.match_id,
+            'hero_id': 'heroId',
+            'steam_id': 'steamAccountId',
+            'slot': 'playerSlot',
+            'party_id': 'partyId',
+            'is_leaver': 'leaverStatus'
+        }
+        MATCH_HERO_MOVEMENT_SPEC = {
+            'match_id': S.match_id,
+            'hero_id': S.hero_id,
+            'id': Val('dummy'),
+            'time': 'time',
+            'x': 'x',
+            'y': 'y'
+        }
+
+
         MATCH_SPEC = {
             'match_id': 'id',
             'replay_salt': 'replaySalt',
@@ -633,19 +694,39 @@ class Stratz(RateLimitedHTTPClient):
             'region': 'regionId',
             'lobby_type': 'lobbyType',
             'game_mode': 'gameMode',
-            'tournament': TOURNAMENT_SPEC,
-            'teams': [...],
-            'draft': [...],
-            'accounts': [...],
-            'players': [...],
-            'hero_movements': [...]
+            'tournament': ('parse_league', Coalesce(TOURNAMENT_SPEC, default=None)),
+            # 'teams': (
+            #     ('parse_dire', Coalesce(TEAM_SPEC, default=SKIP)),
+            #     # ('parse_radiant', Coalesce(TEAM_SPEC, default=SKIP)),
+            # ),
+            'draft': ('parse_match_draft.pick_bans', [DRAFT_SPEC]),
+            'accounts': ('parse_accounts', [('acct', ACCOUNT_SPEC)]),
+            'players': ('parse_match_players', [PLAYER_SPEC]),
+            'hero_movements': (
+                'parse_hero_movements',
+                [(
+                    S(hero_id='heroId'),
+                    'hero_movement.positions',
+                    [MATCH_HERO_MOVEMENT_SPEC],
+                    Invoke(enumerate).specs(T),
+                    [lambda e: {**e[1], 'id': e[0]}]
+                )],
+                Flatten()
+            )
         }
         INCOMPLETE_MATCH_SPEC = {
             'match_id': 'id',
             'replay_salt': 'replaySalt'
         }
         resp = await self.query(q, match_ids=match_ids)
-        spec = ('data.matches', [Or(MATCH_SPEC, INCOMPLETE_MATCH_SPEC)])
+        # spec = ('data.matches', [Or(MATCH_SPEC, INCOMPLETE_MATCH_SPEC)])
+        spec = ('data.matches', [(S(match_id=T['id']), MATCH_SPEC)])
+        data = glom(resp.json(), spec)
+        # print(data[0]['draft'])
+        print('dont do everything in one glom............')
+        raise SystemExit(-1)
+
+
         matches = []
 
         for match in resp.json()['data']['matches']:
