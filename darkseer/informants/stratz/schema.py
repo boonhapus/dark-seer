@@ -169,6 +169,12 @@ class Match(Base):
         }
         return game_modes[game_mode_id]
 
+    def __str__(self):
+        return f'<[s] Match id={self.match_id}>'
+
+    def __repr__(self):
+        return f'{self}'
+
 
 class Hero(Base):
     hero_id: int

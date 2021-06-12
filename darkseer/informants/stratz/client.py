@@ -3,7 +3,7 @@ import logging
 import asyncio
 
 from pydantic import ValidationError
-from glom import glom, T, Call, Val, Or, Coalesce, SKIP
+from glom import glom, S, Val, Or, SKIP
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
@@ -11,8 +11,10 @@ from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match, IncompleteMatch,
     HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
-from .parse import (
-    parse_teams, parse_draft, parse_accounts, parse_players, parse_hero_movements
+from .parse import parse_draft
+from .spec import (
+    PATCH_SPEC, HERO_SPEC, ITEM_SPEC, NPC_SPEC, ABILITY_SPEC,
+    TEAM_SPEC, TOURNAMENT_SPEC, MATCH_SPEC
 )
 
 
@@ -145,13 +147,7 @@ class Stratz(RateLimitedHTTPClient):
         }
         """
         resp = await self.query(q)
-        spec = (
-            'data.constants.gameVersions', [{
-                'patch_id': 'id',
-                'patch': 'name',
-                'release_datetime': 'asOfDateTime'
-            }]
-        )
+        spec = ('data.constants.gameVersions', [PATCH_SPEC])
         data = glom(resp.json(), spec)
         return [GameVersion(**v) for v in data]
 
@@ -168,70 +164,40 @@ class Stratz(RateLimitedHTTPClient):
         query Heroes {
           constants {
             heroes (gameVersionId: $patch_id, language: ENGLISH) {
-              hero_id: id
-              hero_internal_name: shortName
-              hero_display_name: displayName
-              patch_id: gameVersionId
+              id
+              gameVersionId
+              shortName
+              displayName
               parse_stats: stats {
-                primary_attribute: primaryAttribute
-                mana_regen_base: mpRegen
-                strength_base: strengthBase
-                strength_gain: strengthGain
-                agility_base: agilityBase
-                agility_gain: agilityGain
-                intelligence_base: intelligenceBase
-                intelligence_gain: intelligenceGain
-                base_attack_time: attackRate
-                attack_point: attackAnimationPoint
-                attack_type: attackType
-                attack_range: attackRange
-                is_captains_mode: cMEnabled
-                movespeed: moveSpeed
-                turn_rate: moveTurnRate
-                armor_base: startingArmor
-                magic_armor_base: startingMagicArmor
-                damage_base_max: startingDamageMax
-                damage_base_min: startingDamageMin
-                vision_range_day: visionDaytimeRange
-                vision_range_night: visionNighttimeRange
+                primaryAttribute
+                mpRegen
+                strengthBase
+                strengthGain
+                agilityBase
+                agilityGain
+                intelligenceBase
+                intelligenceGain
+                attackRate
+                attackAnimationPoint
+                attackType
+                attackRange
+                cMEnabled
+                moveSpeed
+                moveTurnRate
+                startingArmor
+                startingMagicArmor
+                startingDamageMax
+                startingDamageMin
+                visionDaytimeRange
+                visionNighttimeRange
 
                 # true for dire, false for radiant
-                faction: team
+                team
               }
             }
           }
         }
         """
-        HERO_SPEC = {
-            'hero_id': 'hero_id',
-            'patch_id': 'patch_id',
-            'hero_internal_name': 'hero_internal_name',
-            'hero_display_name': 'hero_display_name',
-            'primary_attribute': 'parse_stats.primary_attribute',
-            'mana_regen_base': 'parse_stats.mana_regen_base',
-            'strength_base': 'parse_stats.strength_base',
-            'strength_gain': 'parse_stats.strength_gain',
-            'agility_base': 'parse_stats.agility_base',
-            'agility_gain': 'parse_stats.agility_gain',
-            'intelligence_base': 'parse_stats.intelligence_base',
-            'intelligence_gain': 'parse_stats.intelligence_gain',
-            'base_attack_time': 'parse_stats.base_attack_time',
-            'attack_point': 'parse_stats.attack_point',
-            'attack_range': 'parse_stats.attack_range',
-            'attack_type': 'parse_stats.attack_type',
-            'is_captains_mode': 'parse_stats.is_captains_mode',
-            'movespeed': 'parse_stats.movespeed',
-            'turn_rate': 'parse_stats.turn_rate',
-            'armor_base': 'parse_stats.armor_base',
-            'magic_armor_base': 'parse_stats.magic_armor_base',
-            'damage_base_max': 'parse_stats.damage_base_max',
-            'damage_base_min': 'parse_stats.damage_base_min',
-            'faction': 'parse_stats.faction',
-            'vision_range_day': 'parse_stats.vision_range_day',
-            'vision_range_night': 'parse_stats.vision_range_night'
-        }
-
-        # skip items if they error out
         resp = await self.query(q, patch_id=patch_id)
         spec = ('data.constants.heroes', [Or(HERO_SPEC, default=SKIP)])
         data = glom(resp.json(), spec)
@@ -266,23 +232,16 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
-        ITEM_SPEC = {
-            'item_id': 'id',
-            'patch_id': Val(patch_id),
-            'item_internal_name': 'shortName',
-            'item_display_name': 'displayName',
-            'cost': 'parse_stats.cost',
-            'is_recipe': 'parse_stats.isRecipe',
-            'is_side_shop': 'parse_stats.isSideShop',
-            'quality': 'parse_stats.quality',
-            'unit_target_flags': 'parse_stats.unitTargetFlags',
-            'unit_target_team': 'parse_stats.unitTargetTeam',
-            'unit_target_type': 'parse_stats.unitTargetType'
-        }
-
-        # skip items if they error out
         resp = await self.query(q, patch_id=patch_id)
-        spec = ('data.constants.items', [Or(ITEM_SPEC, default=SKIP)])
+        # 1. Record patch_id at higher scope
+        # 2. Navigate down the path to all the item data
+        # 3. Apply the ITEM_SPEC to each item
+        #    a. SKIP data points that don't pass the spec
+        spec = (
+            S(patch_id=Val(patch_id)),
+            'data.constants.items',
+            [Or(ITEM_SPEC, default=SKIP)]
+        )
         data = glom(resp.json(), spec)
         return [ItemHistory(**v) for v in data]
 
@@ -315,23 +274,16 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
-        NPC_SPEC = {
-            'npc_id': 'id',
-            'patch_id': Val(patch_id),
-            'npc_internal_name': 'name',
-            'combat_class_attack': 'parse_stats.combatClassAttack',
-            'combat_class_defend': 'parse_stats.combatClassDefend',
-            'is_ancient': 'parse_stats.isAncient',
-            'is_neutral': 'parse_stats.isNeutralUnitType',
-            'health': 'parse_stats.statusHealth',
-            'mana': 'parse_stats.statusMana',
-            'faction': 'parse_stats.teamName',
-            'unit_relationship_class': 'parse_stats.unitRelationshipClass'
-        }
-
-        # skip items if they error out
         resp = await self.query(q, patch_id=patch_id)
-        spec = ('data.constants.npcs', [Or(NPC_SPEC, default=SKIP)])
+        # 1. Record patch_id at higher scope
+        # 2. Navigate down the path to all the NPC data
+        # 3. Apply the NPC_SPEC to each NPC
+        #    a. SKIP data points that don't pass the spec
+        spec = (
+            S(patch_id=Val(patch_id)),
+            'data.constants.npcs',
+            [Or(NPC_SPEC, default=SKIP)]
+        )
         data = glom(resp.json(), spec)
         return [NPCHistory(**v) for v in data]
 
@@ -370,25 +322,16 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
-        ABILITY_SPEC = {
-            'ability_id': 'id',
-            'patch_id': Val(patch_id),
-            'ability_internal_name': 'name',
-            'ability_display_name': 'parse_language.displayName',
-            'is_talent': 'isTalent',
-            'is_ultimate': 'parse_stats.hasScepterUpgrade',
-            'has_scepter_upgrade': 'parse_stats.isGrantedByScepter',
-            'is_scepter_upgrade': 'parse_stats.isGrantedByShard',
-            'is_aghanims_shard': 'parse_stats.isUltimate',
-            'required_level': 'parse_stats.requiredLevel',
-            'ability_type': 'parse_stats.type',
-            'ability_damage_type': 'parse_stats.unitDamageType',
-            'unit_target_flags': 'parse_stats.unitTargetFlags',
-            'unit_target_team': 'parse_stats.unitTargetTeam',
-            'unit_target_type': 'parse_stats.unitTargetType',
-        }
         resp = await self.query(q, patch_id=patch_id)
-        spec = ('data.constants.abilities', [Or(ABILITY_SPEC, default=SKIP)])
+        # 1. Record patch_id at higher scope
+        # 2. Navigate down the path to all the ability data
+        # 3. Apply the ABILITY_SPEC to each ability
+        #    a. SKIP data points that don't pass the spec
+        spec = (
+            S(patch_id=Val(patch_id)),
+            'data.constants.abilities',
+            [Or(ABILITY_SPEC, default=SKIP)]
+        )
         data = glom(resp.json(), spec)
         return [AbilityHistory(**v) for v in data]
 
@@ -413,13 +356,37 @@ class Stratz(RateLimitedHTTPClient):
             r = r.json()['data']['stratz']['matchRetry']
             log.info(f'reparsing salt, {salt}: {r}')
 
+    async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:
+        """
+        Return a list of competitive teams.
+
+        Parameters
+        ----------
+        team_ids : List[int, ...]
+          ids of teams to parse
+        """
+        q = """
+        query CompetitiveTeams {
+          competitive_teams: teams(teamIds: $teams) {
+            id
+            name
+            tag
+            dateCreated
+          }
+        }
+        """
+        resp = await self.query(q, teams=team_ids)
+        spec = ('data.competitive_teams', [TEAM_SPEC])
+        data = glom(resp.json(), spec)
+        return [CompetitiveTeam(**v) for v in data]
+
     async def tournaments(self) -> List[Tournament]:
         """
         Return a list of tournaments.
         """
         q = """
         query Tournaments {
-          tournaments: leagues(request: {
+          leagues(request: {
               skip: $skip_value,
               take: 50,
               tiers: [
@@ -436,20 +403,12 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
-        TOURNAMENT_SPEC = {
-            'league_id': 'id',
-            'league_name': 'displayName',
-            'league_start_date': 'startDateTime',
-            'league_end_date': 'endDateTime',
-            'tier': 'tier',
-            'prize_pool': 'prizePool'
-        }
         leagues = []
 
         while True:
             skip = len(leagues)
             resp = await self.query(q, skip_value=skip)
-            spec = ('data.tournaments', [TOURNAMENT_SPEC])
+            spec = ('data.leagues', [TOURNAMENT_SPEC])
             data = glom(resp.json(), spec)
             leagues.extend([d for d in data if d not in leagues])
 
@@ -481,7 +440,7 @@ class Stratz(RateLimitedHTTPClient):
         # Match.events .......... MatchEvent
         q = """
         query TournamentMatches {
-          tournament_matches: league(id: $league_id) {
+          league(id: $league_id) {
             matches(request: {
               skip: $skip_value,
               take: 50,
@@ -498,7 +457,7 @@ class Stratz(RateLimitedHTTPClient):
         while True:
             skip = len(match_ids)
             resp = await self.query(q, league_id=league_id, skip_value=skip)
-            spec = ('data.tournament_matches.matches', ['id'])
+            spec = ('data.league.matches', ['id'])
             data = glom(resp.json(), spec)
             match_ids.update(data)
 
@@ -542,6 +501,7 @@ class Stratz(RateLimitedHTTPClient):
             replaySalt
             gameVersionId
             leagueId
+            seriesId
             radiantTeamId
             direTeamId
             startDateTime
@@ -593,15 +553,15 @@ class Stratz(RateLimitedHTTPClient):
               acct: steamAccount {
                 id
                 name
-                is_pro: proSteamAccount {
+                proSteamAccount {
                   name
                 }
               }
             }
             parse_hero_movements: players {
               heroId
-              hero_movement: playbackData {
-                positions: playerUpdatePositionEvents {
+              playbackData {
+                playerUpdatePositionEvents {
                   # match_id:
                   # hero_id:
                   # id:
@@ -624,159 +584,38 @@ class Stratz(RateLimitedHTTPClient):
           }
         }
         """
-        from glom import S, M, Invoke, Merge, Flatten, Switch, Match as gMatch
-        from rich import print
-
-        TOURNAMENT_SPEC = {
-            'league_id': 'id',
-            'league_name': 'displayName',
-            'league_start_date': 'startDateTime',
-            'league_end_date': 'endDateTime',
-            'tier': 'tier',
-            'prize_pool': 'prizePool'
-        }
-        TEAM_SPEC = {
-            'team_id': 'id',
-            'team_name': 'name',
-            'team_tag': 'tag',
-            'country_code': 'countryCode',
-            'created': 'dateCreated'
-        }
-        DRAFT_SPEC = {
-            'match_id': S.match_id,
-            'hero_id': 'heroId',
-            'draft_type': (
-                print(T['isPick']),
-                Switch([
-                    (T['isPick'], Val('pick')),
-                    (gMatch(None).matches(T['playerIndex']), Val('system generated ban')),
-                    (not M(T['wasBannedSuccessfully']), Val('ban vote')),
-                    (M == T['wasBannedSuccessfully'], Val('ban'))
-                ], default=Val(-1))
-            ),
-            'draft_order': 'order',
-            'is_random': Val(-1),
-            'by_steam_id': Val(-1)
-        }
-        ACCOUNT_SPEC = {
-            'steam_id': 'id',
-            'steam_name': Coalesce('is_pro.name', 'name')
-        }
-        PLAYER_SPEC = {
-            'match_id': S.match_id,
-            'hero_id': 'heroId',
-            'steam_id': 'steamAccountId',
-            'slot': 'playerSlot',
-            'party_id': 'partyId',
-            'is_leaver': 'leaverStatus'
-        }
-        MATCH_HERO_MOVEMENT_SPEC = {
-            'match_id': S.match_id,
-            'hero_id': S.hero_id,
-            'id': Val('dummy'),
-            'time': 'time',
-            'x': 'x',
-            'y': 'y'
-        }
-
-
-        MATCH_SPEC = {
-            'match_id': 'id',
-            'replay_salt': 'replaySalt',
-            'patch_id': 'gameVersionId',
-            'league_id': 'leagueId',
-            'radiant_team_id': 'radiantTeamId',
-            'dire_team_id': 'direTeamId',
-            'start_datetime': 'startDateTime',
-            'is_stats': 'isStats',
-            'winning_faction': 'didRadiantWin',
-            'duration': 'durationSeconds',
-            'region': 'regionId',
-            'lobby_type': 'lobbyType',
-            'game_mode': 'gameMode',
-            'tournament': ('parse_league', Coalesce(TOURNAMENT_SPEC, default=None)),
-            # 'teams': (
-            #     ('parse_dire', Coalesce(TEAM_SPEC, default=SKIP)),
-            #     # ('parse_radiant', Coalesce(TEAM_SPEC, default=SKIP)),
-            # ),
-            'draft': ('parse_match_draft.pick_bans', [DRAFT_SPEC]),
-            'accounts': ('parse_accounts', [('acct', ACCOUNT_SPEC)]),
-            'players': ('parse_match_players', [PLAYER_SPEC]),
-            'hero_movements': (
-                'parse_hero_movements',
-                [(
-                    S(hero_id='heroId'),
-                    'hero_movement.positions',
-                    [MATCH_HERO_MOVEMENT_SPEC],
-                    Invoke(enumerate).specs(T),
-                    [lambda e: {**e[1], 'id': e[0]}]
-                )],
-                Flatten()
-            )
-        }
-        INCOMPLETE_MATCH_SPEC = {
-            'match_id': 'id',
-            'replay_salt': 'replaySalt'
-        }
         resp = await self.query(q, match_ids=match_ids)
-        # spec = ('data.matches', [Or(MATCH_SPEC, INCOMPLETE_MATCH_SPEC)])
-        spec = ('data.matches', [(S(match_id=T['id']), MATCH_SPEC)])
-        data = glom(resp.json(), spec)
-        # print(data[0]['draft'])
-        print('dont do everything in one glom............')
-        raise SystemExit(-1)
-
-
         matches = []
 
         for match in resp.json()['data']['matches']:
-            m = {k: v for k, v in match.items() if not k.startswith('parse_')}
+
+            # pre-processing
+            match['parse_teams'] = [match['parse_dire'], match['parse_radiant']]
+            spec = (
+                S(match_id='id'),
+                MATCH_SPEC
+            )
 
             try:
-                m['tournament'] = match['parse_league']
-                m['teams'] = parse_teams(match)
+                m = glom(match, spec)
+
+                # handled in glomspec
+                # m['tournament']
+                # m['teams']
+                # m['accounts']
+                # m['hero_movements']
+                # m['players'] = parse_players(match)
+                #
                 m['draft'] = parse_draft(match)
-                m['accounts'] = parse_accounts(match)
-                m['players'] = parse_players(match)
-                m['hero_movements'] = parse_hero_movements(match)
                 m = Match(**m)
-            except (TypeError, ValidationError):
-                m = IncompleteMatch(match_id=m['match_id'], replay_salt=m['replay_salt'])
+            except ValidationError:
+                m = IncompleteMatch(match_id=match['id'], replay_salt=match['replaySalt'])
 
             matches.append(m)
 
+        print(matches)
+        raise SystemExit(-1)
         return matches
-
-    async def teams(self, *, team_ids: List[int]) -> List[CompetitiveTeam]:
-        """
-        Return a list of competitive teams.
-
-        Parameters
-        ----------
-        team_ids : List[int, ...]
-          ids of teams to parse
-        """
-        q = """
-        query CompetitiveTeams {
-          competitive_teams: teams(teamIds: $teams) {
-            id
-            name
-            tag
-            dateCreated
-          }
-        }
-        """
-        resp = await self.query(q, teams=team_ids)
-        spec = (
-            'data.competitive_teams', [{
-                'team_id': 'id',
-                'team_name': 'name',
-                'team_tag': 'tag',
-                'created': 'dateCreated',
-            }]
-        )
-        data = glom(resp.json(), spec)
-        return [CompetitiveTeam(**v) for v in data]
 
     def __repr__(self) -> str:
         return f'<StratzClient {self.rate}r/s>'

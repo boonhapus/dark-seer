@@ -181,8 +181,7 @@ async def tournament(
 @db_options
 @_coro
 async def match(
-    match_id: int=O_(None, help='Match ID to get data for.'),
-    tournament_id: int=O_(None, help='League ID to get data for.'),
+    match_id: List[int]=O_(None, help='Match ID to get data for.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
@@ -192,15 +191,22 @@ async def match(
     """
     Collect Match data.
     """
-    if match_id is None and tournament_id is None:
+    if not match_id:
         console.print('[error]must provide at least one match and/or tournament!')
         raise typer.Exit(-1)
+
+    try:
+        match_id = list(iter(match_id))
+    except TypeError:
+        match_id = [match_id]
 
     db = Database(**db_options)
 
     async with Stratz(bearer_token=token) as api:
-        with console.status(f'collecting data on match id {match_id}..'):
-            r = await api.matches(match_ids=[match_id])
+        s = 's' if len(match_id) > 1 else ''
+        ids = ','.join(map(str, match_id))
+        with console.status(f'collecting data on match id{s} {ids}..'):
+            r = await api.matches(match_ids=match_id)
             matches = [_ for _ in r if isinstance(_, schema.Match)]
             incomplete = [_ for _ in r if isinstance(_, schema.IncompleteMatch)]
 
