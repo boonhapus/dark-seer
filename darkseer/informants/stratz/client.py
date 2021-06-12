@@ -613,8 +613,6 @@ class Stratz(RateLimitedHTTPClient):
 
             matches.append(m)
 
-        print(matches)
-        raise SystemExit(-1)
         return matches
 
     def __repr__(self) -> str:
