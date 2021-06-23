@@ -11,6 +11,7 @@ from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match, IncompleteMatch,
     HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
+from .parse import parse_events
 from .spec import (
     PATCH_SPEC, HERO_SPEC, ITEM_SPEC, NPC_SPEC, ABILITY_SPEC,
     TEAM_SPEC, TOURNAMENT_SPEC, MATCH_SPEC
@@ -593,6 +594,29 @@ class Stratz(RateLimitedHTTPClient):
                   # extra data
                   isFromIllusion
                 }
+                deathEvents {
+                  time
+                  positionX
+                  positionY
+                  byAbility
+                  byItem
+                  attacker
+                  target
+                  # extra data
+                  isFromIllusion
+                  goldFed
+                  goldLost
+                  reliableGold
+                  unreliableGold
+                  timeDead
+                }
+                assistEvents {
+                  time
+                  positionX
+                  positionY
+                  attacker
+                  target
+                }
               }
             }
           }
@@ -617,8 +641,17 @@ class Stratz(RateLimitedHTTPClient):
                 # m['players']
                 #
                 m['events'] = parse_events(match)
+
+                # TODO .. remove print-data-debugging
+                # from rich import print
+                # for event_type in set(e['event_type'] for e in m['events']):
+                #     events = [e for e in m['events'] if e['event_type'] == event_type]
+                #     print(f'{event_type}: {len(events)} events')
+                # raise SystemExit(-1)
+
                 m = Match(**m)
             except ValidationError:
+                log.exception(f'missing data on match {match["id"]}')
                 m = IncompleteMatch(match_id=match['id'], replay_salt=match['replaySalt'])
 
             matches.append(m)

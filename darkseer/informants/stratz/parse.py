@@ -1,6 +1,6 @@
 from typing import Any, Optional, List, Dict
 
-from glom import Val
+from glom import glom, T, Val, Invoke, Flatten
 
 
 FLAT_API_RESPONSE = List[Dict[str, Any]]
@@ -69,29 +69,86 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Kill
     spec = (
-        'parse_player_events.playbackData.killEvents',
-        [{
-            'match_id': match_id,
-            'event_type': Val('hero_kill'),
-            # 'id': ...,
-            'time': 'time',
-            'x': 'positionX',
-            'y': 'positionY',
-            'ability_id': 'byAbility',
-            'item_id': 'byItem',
-            'actor_id': 'attacker',
-            'target_id': 'target',
-            'extra_data': {
-                'is_from_illusion': 'isFromIllusion'
-            }
-        }]
+        'parse_player_events',
+        [(
+            'playbackData.killEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('hero_kill'),
+                # 'id': ...,
+                'time': 'time',
+                'x': 'positionX',
+                'y': 'positionY',
+                'ability_id': 'byAbility',
+                'item_id': 'byItem',
+                'actor_id': 'attacker',
+                'target_id': 'target',
+                'extra_data': {
+                    'is_from_illusion': 'isFromIllusion'
+                }
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
     )
+    r.extend(glom(m, spec))
 
     # Death
-    # parse_player_events.playbackData.deathEvents
+    spec = (
+        'parse_player_events',
+        [(
+            'playbackData.deathEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('hero_death'),
+                # 'id': ...,
+                'time': 'time',
+                'x': 'positionX',
+                'y': 'positionY',
+                'ability_id': 'byAbility',
+                'item_id': 'byItem',
+                'actor_id': 'attacker',
+                'target_id': 'target',
+                'extra_data': {
+                    'is_from_illusion': 'isFromIllusion',
+                    'gold_fed': 'goldFed',
+                    'gold_lost': 'goldLost',
+                    'gold_reliable': 'reliableGold',
+                    'gold_unreliable': 'unreliableGold'
+                }
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Assist
-    # parse_player_events.playbackData.deathEvents
+    spec = (
+        'parse_player_events',
+        [(
+            'playbackData.assistEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('hero_assist'),
+                # 'id': ...,
+                'time': 'time',
+                'x': 'positionX',
+                'y': 'positionY',
+                'actor_id': 'attacker',
+                'target_id': 'target',
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Creep Kill
     # parse_player_events.playbackData.csEvents
