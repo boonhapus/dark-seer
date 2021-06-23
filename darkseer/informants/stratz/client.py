@@ -11,7 +11,6 @@ from .schema import (
     GameVersion, Tournament, CompetitiveTeam, Match, IncompleteMatch,
     HeroHistory, ItemHistory, NPCHistory, AbilityHistory
 )
-from .parse import parse_draft
 from .spec import (
     PATCH_SPEC, HERO_SPEC, ITEM_SPEC, NPC_SPEC, ABILITY_SPEC,
     TEAM_SPEC, TOURNAMENT_SPEC, MATCH_SPEC
@@ -550,7 +549,7 @@ class Stratz(RateLimitedHTTPClient):
               }
             }
             parse_accounts: players {
-              acct: steamAccount {
+              parse_account: steamAccount {
                 id
                 name
                 proSteamAccount {
@@ -581,6 +580,21 @@ class Stratz(RateLimitedHTTPClient):
               # extra data for parsing
               isRandom
             }
+            parse_player_events: players {
+              playbackData {
+                killEvents {
+                  time
+                  positionX
+                  positionY
+                  byAbility
+                  byItem
+                  attacker
+                  target
+                  # extra data
+                  isFromIllusion
+                }
+              }
+            }
           }
         }
         """
@@ -591,22 +605,18 @@ class Stratz(RateLimitedHTTPClient):
 
             # pre-processing
             match['parse_teams'] = [match['parse_dire'], match['parse_radiant']]
-            spec = (
-                S(match_id='id'),
-                MATCH_SPEC
-            )
 
             try:
-                m = glom(match, spec)
+                m = glom(match, MATCH_SPEC)
 
                 # handled in glomspec
                 # m['tournament']
                 # m['teams']
                 # m['accounts']
                 # m['hero_movements']
-                # m['players'] = parse_players(match)
+                # m['players']
                 #
-                m['draft'] = parse_draft(match)
+                m['events'] = parse_events(match)
                 m = Match(**m)
             except ValidationError:
                 m = IncompleteMatch(match_id=match['id'], replay_salt=match['replaySalt'])

@@ -1,5 +1,7 @@
 from typing import Any, Optional, List, Dict
 
+from glom import Val
+
 
 FLAT_API_RESPONSE = List[Dict[str, Any]]
 
@@ -44,20 +46,69 @@ def _parse_draft_actor(
     if player_idx is None:
         return None
 
-    return players[player_idx].get('steam_id')
+    return players[player_idx].get('steamAccountId')
 
 
-def parse_draft(m) -> Optional[FLAT_API_RESPONSE]:
-    # TODO .. use glom?
-    r = [
-        {
-            'match_id': m['id'],
-            'hero_id': pick_ban['heroId'] or pick_ban['bannedHeroId'],
-            'draft_type': _parse_draft_type(pick_ban),
-            'draft_order': pick_ban['order'],
-            'is_random': _parse_draft_is_random(m['parse_match_players'], player_idx=pick_ban['playerIndex']),
-            'by_steam_id': _parse_draft_actor(m['parse_match_players'], player_idx=pick_ban['playerIndex'])
-        }
-        for pick_ban in m['parse_match_draft']['pick_bans']
-    ]
+def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
+    r = []
+
+    match_id = Val(m['id'])
+    player_data = m['parse_match_players']
+
+    # Ability Learn
+    # parse_player_events.playbackData.abilityLearnEvents
+
+    # Ability Use
+    # parse_player_events.playbackData.abilityUsedEvents
+
+    # Item Purchase
+    # parse_player_events.playbackData.purchaseEvents
+
+    # Item Use
+    # parse_player_events.playbackData.itemUsedEvents
+
+    # Kill
+    spec = (
+        'parse_player_events.playbackData.killEvents',
+        [{
+            'match_id': match_id,
+            'event_type': Val('hero_kill'),
+            # 'id': ...,
+            'time': 'time',
+            'x': 'positionX',
+            'y': 'positionY',
+            'ability_id': 'byAbility',
+            'item_id': 'byItem',
+            'actor_id': 'attacker',
+            'target_id': 'target',
+            'extra_data': {
+                'is_from_illusion': 'isFromIllusion'
+            }
+        }]
+    )
+
+    # Death
+    # parse_player_events.playbackData.deathEvents
+
+    # Assist
+    # parse_player_events.playbackData.deathEvents
+
+    # Creep Kill
+    # parse_player_events.playbackData.csEvents
+
+    # Creep Deny
+
+    # Gold Change
+    # Experience Change
+
+    # Buyback
+    # parse_player_events.playbakData.buyBackEvents
+
+    # Courier Death
+    # Ward Placed
+    # Ward Destroyed
+    # Roshan Death
+    # Building Death
+    # Rune Spawn
+    # Rune Taken
     return r

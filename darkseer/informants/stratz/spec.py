@@ -1,4 +1,6 @@
-from glom import glom, S, T, Coalesce, SKIP, Assign, Spec, Flatten, Invoke
+from glom import S, T, Coalesce, SKIP, Flatten, Invoke
+
+from .parse import _parse_draft_type, _parse_draft_is_random, _parse_draft_actor
 
 
 PATCH_SPEC = {
@@ -99,7 +101,6 @@ TOURNAMENT_SPEC = {
     'prize_pool': 'prizePool'
 }
 
-
 MATCH_SPEC = {
     'match_id': 'id',
     'replay_salt': 'replaySalt',
@@ -118,16 +119,48 @@ MATCH_SPEC = {
     'tournament': ('parse_league', Coalesce(TOURNAMENT_SPEC, default=None)),
     'teams': ('parse_teams', [Coalesce(TEAM_SPEC, default=SKIP)]),
     'accounts': (
+        # EXPLAIN:
+        #
+        #   1. for each account
+        #      - look one level deeper
+        #      - prioritize professional names over steam display names
+        #
         'parse_accounts',
         [(
-            'acct',
+            'parse_account',
             {
                 'steam_id': 'id',
                 'steam_name': Coalesce('proSteamAccount.name', 'name')
             }
         )]
     ),
+    'draft': (
+        # EXPLAIN:
+        #
+        #   1. retain a reference to match_id
+        #   2. retain a reference to all the player data
+        #   3. for each draft type element
+        #      - prioritze banned hero ids over hero ids
+        #      - parse content not easily glom'd with custom functions
+        S(match_id='id'),
+        S(players='parse_match_players'),
+        'parse_match_draft.pick_bans',
+        [{
+            'match_id': S.match_id,
+            'hero_id': Coalesce('bannedHeroId', 'heroId'),
+            'draft_type': Invoke(_parse_draft_type).specs(T),
+            'draft_order': 'order',
+            'is_random': Invoke(_parse_draft_is_random).specs(S.players).star(kwargs={'player_idx': T['playerIndex']}),
+            'by_steam_id': Invoke(_parse_draft_actor).specs(S.players).star(kwargs={'player_idx': T['playerIndex']}),
+        }]
+    ),
     'players': (
+        # EXPLAIN:
+        #
+        #   1. retain a reference to match_id
+        #   2. for each player
+        #      - map data apporpriately
+        S(match_id='id'),
         'parse_match_players',
         [{
             'match_id': S.match_id,
@@ -139,6 +172,16 @@ MATCH_SPEC = {
         }]
     ),
     'hero_movements': (
+        # EXPLAIN:
+        #
+        #   1. retain a reference to match_id
+        #   2. look one level deeper and for each player
+        #      a. retain a reference to the current hero
+        #      b. for each postion event
+        #         - map the data appropriately
+        #         - enumerate all existing data points
+        #   3. flatten the list of list (2 produces a list, 2b produces a list)
+        S(match_id='id'),
         'parse_hero_movements',
         [(
             S(hero_id='heroId'),
@@ -146,6 +189,7 @@ MATCH_SPEC = {
             [{
                 'match_id': S.match_id,
                 'hero_id': S.hero_id,
+                # 'id': ...,
                 'time': 'time',
                 'x': 'x',
                 'y': 'y'

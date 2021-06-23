@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 import datetime as dt
 
 from pydantic import BaseModel, validator
@@ -27,153 +27,6 @@ class GameVersion(Base):
     @validator('release_datetime', pre=True)
     def ensure_utc(cls, ts: int) -> dt.datetime:
         return dt.datetime.utcfromtimestamp(ts)
-
-
-class Account(Base):
-    steam_id: int
-    steam_name: str
-    discord_id: Optional[int]
-
-
-class Tournament(Base):
-    league_id: int
-    league_name: str
-    league_start_date: Optional[dt.datetime]
-    league_end_date: Optional[dt.datetime]
-    tier: str
-    prize_pool: int
-
-    @validator('tier')
-    def str_lower(cls, string: str) -> str:
-        return f'{string}'.lower()
-
-    @validator('league_start_date', 'league_end_date', pre=True)
-    def ensure_utc(cls, ts: int) -> dt.datetime:
-        if ts is None:
-            return None
-
-        return dt.datetime.utcfromtimestamp(ts)
-
-
-class CompetitiveTeam(Base):
-    team_id: int
-    team_name: str
-    team_tag: str
-    country_code: Optional[str]
-    created: Optional[dt.datetime]
-
-    @validator('created', pre=True)
-    def ensure_utc(cls, ts: int) -> dt.datetime:
-        if ts is None:
-            return None
-
-        return dt.datetime.utcfromtimestamp(ts)
-
-
-class MatchPlayer(Base):
-    match_id: int
-    hero_id: int
-    steam_id: int
-    slot: int
-    party_id: Optional[int]
-    is_leaver: bool
-
-
-class HeroMovement(Base):
-    match_id: int
-    hero_id: int
-    id: int
-    time: int
-    x: int
-    y: int
-
-
-class MatchDraft(Base):
-    match_id: int
-    hero_id: int
-    draft_type: str
-    draft_order: Optional[int]
-    is_random: bool
-    by_steam_id: Optional[int]
-
-
-class IncompleteMatch(Base):
-    match_id: int
-    replay_salt: int
-
-
-class Match(Base):
-    match_id: int
-    replay_salt: int
-    patch_id: int
-    league_id: Optional[int]
-    series_id: Optional[int]
-    radiant_team_id: Optional[int]
-    dire_team_id: Optional[int]
-    start_datetime: dt.datetime
-    winning_faction: str
-    is_stats: bool
-    duration: int
-    region: str
-    lobby_type: str
-    game_mode: str
-
-    tournament: Optional[Tournament]
-    teams: Optional[List[CompetitiveTeam]]
-    accounts: List[Account]
-    draft: List[MatchDraft]
-    players: List[MatchPlayer]
-    hero_movements: List[HeroMovement]
-    # events: List[MatchEvent]
-
-    @validator('start_datetime', pre=True)
-    def ensure_utc(cls, ts: int) -> dt.datetime:
-        if ts is None:
-            return None
-
-        return dt.datetime.utcfromtimestamp(ts)
-
-    @validator('winning_faction', pre=True)
-    def parse_winner(cls, is_radiant_win: bool) -> str:
-        return 'radiant' if is_radiant_win else 'dire'
-
-    @validator('region', pre=True)
-    def region_id_to_name(cls, region_id: int) -> str:
-        regions = {
-            0: 'UNDEFINED', 1: 'US West', 2: 'US East',        3: 'Europe West',
-            5: 'SE Asia',   6: 'Dubai',   7: 'Australia',      8: 'Stockholm',
-            9: 'Austria',  10: 'Brazil', 11: 'South Africa',  12: 'China',
-            13: 'China',   14: 'Chile',  15: 'Peru',          16: 'India',
-            17: 'China',   18: 'China',  19: 'Japan',         20: 'China',
-            25: 'China',   37: 'Taiwan'
-        }
-        return regions[region_id]
-
-    @validator('lobby_type', pre=True)
-    def lobby_id_to_name(cls, lobby_id: int) -> str:
-        lobby_types = {
-            0: 'Normal',           1: 'Practice',   2: 'Tournament',
-            3: 'Tutorial',         4: 'Co-op Bots', 5: 'Team Matchmaking',
-            6: 'Solo Matchmaking', 7: 'Ranked',     8: '1v1 Mid',
-            9: 'Battle Cup'
-        }
-        return lobby_types[lobby_id]
-
-    @validator('game_mode', pre=True)
-    def game_mode_to_name(cls, game_mode_id: int) -> str:
-        game_modes = {
-            0: 'Unknown',       1: 'All Pick',         2: 'Captains Mode',
-            3: 'Random Draft',  4: 'Single Draft',     5: 'All Random',
-            12: 'Least Played', 16: 'Captains Draft', 17: 'Balanced Draft',
-            22: 'All Draft'
-        }
-        return game_modes[game_mode_id]
-
-    def __str__(self):
-        return f'<[s] Match id={self.match_id}>'
-
-    def __repr__(self):
-        return f'{self}'
 
 
 class Hero(Base):
@@ -321,3 +174,166 @@ class AbilityHistory(Base):
         Useful for SCD4 activites.
         """
         return Ability(ability_id=self.ability_id, ability_internal_name=self.ability_internal_name)
+
+
+class Account(Base):
+    steam_id: int
+    steam_name: str
+    discord_id: Optional[int]
+
+
+class Tournament(Base):
+    league_id: int
+    league_name: str
+    league_start_date: Optional[dt.datetime]
+    league_end_date: Optional[dt.datetime]
+    tier: str
+    prize_pool: int
+
+    @validator('tier')
+    def str_lower(cls, string: str) -> str:
+        return f'{string}'.lower()
+
+    @validator('league_start_date', 'league_end_date', pre=True)
+    def ensure_utc(cls, ts: int) -> dt.datetime:
+        if ts is None:
+            return None
+
+        return dt.datetime.utcfromtimestamp(ts)
+
+
+class CompetitiveTeam(Base):
+    team_id: int
+    team_name: str
+    team_tag: str
+    country_code: Optional[str]
+    created: Optional[dt.datetime]
+
+    @validator('created', pre=True)
+    def ensure_utc(cls, ts: int) -> dt.datetime:
+        if ts is None:
+            return None
+
+        return dt.datetime.utcfromtimestamp(ts)
+
+
+class MatchPlayer(Base):
+    match_id: int
+    hero_id: int
+    steam_id: int
+    slot: int
+    party_id: Optional[int]
+    is_leaver: bool
+
+
+class HeroMovement(Base):
+    match_id: int
+    hero_id: int
+    id: int
+    time: int
+    x: int
+    y: int
+
+
+class MatchDraft(Base):
+    match_id: int
+    hero_id: int
+    draft_type: str
+    draft_order: Optional[int]
+    is_random: bool
+    by_steam_id: Optional[int]
+
+
+class MatchEvent(Base):
+    match_id: int
+    event_type: str
+    id: int
+    time: int
+    x: int
+    y: int
+    actor_id: int
+    target_id: int
+    hero_id: int
+    npc_id: int
+    ability_id: int
+    item_id: int
+    extra_data: Dict
+
+
+class IncompleteMatch(Base):
+    match_id: int
+    replay_salt: int
+
+
+class Match(Base):
+    match_id: int
+    replay_salt: int
+    patch_id: int
+    league_id: Optional[int]
+    series_id: Optional[int]
+    radiant_team_id: Optional[int]
+    dire_team_id: Optional[int]
+    start_datetime: dt.datetime
+    winning_faction: str
+    is_stats: bool
+    duration: int
+    region: str
+    lobby_type: str
+    game_mode: str
+
+    tournament: Optional[Tournament]
+    teams: Optional[List[CompetitiveTeam]]
+    accounts: List[Account]
+    draft: List[MatchDraft]
+    players: List[MatchPlayer]
+    hero_movements: List[HeroMovement]
+    # events: List[MatchEvent]
+
+    @validator('start_datetime', pre=True)
+    def ensure_utc(cls, ts: int) -> dt.datetime:
+        if ts is None:
+            return None
+
+        return dt.datetime.utcfromtimestamp(ts)
+
+    @validator('winning_faction', pre=True)
+    def parse_winner(cls, is_radiant_win: bool) -> str:
+        return 'radiant' if is_radiant_win else 'dire'
+
+    @validator('region', pre=True)
+    def region_id_to_name(cls, region_id: int) -> str:
+        regions = {
+            0: 'UNDEFINED', 1: 'US West', 2: 'US East',        3: 'Europe West',
+            5: 'SE Asia',   6: 'Dubai',   7: 'Australia',      8: 'Stockholm',
+            9: 'Austria',  10: 'Brazil', 11: 'South Africa',  12: 'China',
+            13: 'China',   14: 'Chile',  15: 'Peru',          16: 'India',
+            17: 'China',   18: 'China',  19: 'Japan',         20: 'China',
+            25: 'China',   37: 'Taiwan'
+        }
+        return regions[region_id]
+
+    @validator('lobby_type', pre=True)
+    def lobby_id_to_name(cls, lobby_id: int) -> str:
+        lobby_types = {
+            0: 'Normal',           1: 'Practice',   2: 'Tournament',
+            3: 'Tutorial',         4: 'Co-op Bots', 5: 'Team Matchmaking',
+            6: 'Solo Matchmaking', 7: 'Ranked',     8: '1v1 Mid',
+            9: 'Battle Cup'
+        }
+        return lobby_types[lobby_id]
+
+    @validator('game_mode', pre=True)
+    def game_mode_to_name(cls, game_mode_id: int) -> str:
+        game_modes = {
+            0: 'Unknown',       1: 'All Pick',         2: 'Captains Mode',
+            3: 'Random Draft',  4: 'Single Draft',     5: 'All Random',
+            12: 'Least Played', 16: 'Captains Draft', 17: 'Balanced Draft',
+            22: 'All Draft'
+        }
+        return game_modes[game_mode_id]
+
+    def __str__(self):
+        return f'<[s] Match id={self.match_id}>'
+
+    def __repr__(self):
+        return f'{self}'
