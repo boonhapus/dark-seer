@@ -307,7 +307,7 @@ class MatchEvent(Base):
     - Gold Change
     - Experience Change
     - Buyback
-    - Courier Death
+    - Courier Snipe
     - Ward Placed
     - Ward Destroyed
     - Roshan Death
@@ -318,11 +318,13 @@ class MatchEvent(Base):
     __tablename__ = 'match_event'
 
     match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    event_type = Column(String, primary_key=True)
     id = Column(Integer, primary_key=True)
-    event_type = Column(String)
     time = Column(SmallInteger)
     x = Column(SmallInteger)
     y = Column(SmallInteger)
+    actor_id = Column(SmallInteger)
+    target_id = Column(SmallInteger)
     hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), nullable=True)
     npc_id = Column(SmallInteger, ForeignKey('non_player_character.npc_id'), nullable=True)
     ability_id = Column(SmallInteger, ForeignKey('ability.ability_id'), nullable=True)
