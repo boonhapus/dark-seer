@@ -130,7 +130,7 @@ MATCH_SPEC = {
             'parse_account',
             {
                 'steam_id': 'id',
-                'steam_name': Coalesce('proSteamAccount.name', 'name')
+                'steam_name': Coalesce('proSteamAccount.name', 'name', skip=None)
             }
         )]
     ),
@@ -147,7 +147,7 @@ MATCH_SPEC = {
         'parse_match_draft.pick_bans',
         [{
             'match_id': S.match_id,
-            'hero_id': Coalesce('bannedHeroId', 'heroId'),
+            'hero_id': Coalesce('bannedHeroId', 'heroId', skip=None),
             'draft_type': Invoke(_parse_draft_type).specs(T),
             'draft_order': 'order',
             'is_random': Invoke(_parse_draft_is_random).specs(S.players).star(kwargs={'player_idx': T['playerIndex']}),
