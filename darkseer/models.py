@@ -325,8 +325,6 @@ class MatchEvent(Base):
     y = Column(SmallInteger)
     actor_id = Column(SmallInteger)
     target_id = Column(SmallInteger)
-    hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), nullable=True)
-    npc_id = Column(SmallInteger, ForeignKey('non_player_character.npc_id'), nullable=True)
     ability_id = Column(SmallInteger, ForeignKey('ability.ability_id'), nullable=True)
     item_id = Column(SmallInteger, ForeignKey('item.item_id'), nullable=True)
     extra_data = Column(JSON)

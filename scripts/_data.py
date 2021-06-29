@@ -8,7 +8,7 @@ from darkseer.database import Database
 from darkseer.models import (
     GameVersion, Tournament, Account,
     Hero, HeroHistory, Item, ItemHistory, NPC, NPCHistory, Ability, AbilityHistory,
-    Match, CompetitiveTeam, MatchDraft, MatchPlayer, MatchHeroMovement,  # , MatchEvent
+    Match, CompetitiveTeam, MatchDraft, MatchPlayer, MatchHeroMovement, MatchEvent,
     StagingReparseMatch
 )
 from darkseer.util import upsert, chunks
@@ -60,7 +60,7 @@ async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
     matches = [m.dict() for m in matches]
     deps = ('tournament', 'teams', 'accounts', 'draft', 'players', 'hero_movements', 'events')
 
-    t = unique([m['tournament'] for m in matches])
+    t = unique([m['tournament'] for m in matches if m['tournament'] is not None])
     for chunk in chunks(t, n=5000):
         stmt = upsert(Tournament).values(chunk)
         await sess.execute(stmt)
@@ -70,7 +70,7 @@ async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
         stmt = upsert(CompetitiveTeam).values(chunk)
         await sess.execute(stmt)
 
-    m = unique([{k: v for k, v in m.items() if k not in deps} for m in matches])
+    m = [{k: v for k, v in m.items() if k not in deps} for m in matches]
     for chunk in chunks(m, n=2500):
         stmt = upsert(Match).values(chunk)
         await sess.execute(stmt)
@@ -80,23 +80,25 @@ async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
         stmt = upsert(Account).values(chunk)
         await sess.execute(stmt)
 
-    d = unique([d for m in matches for d in m['draft']])
+    d = [d for m in matches for d in m['draft']]
     for chunk in chunks(d, n=5000):
         stmt = upsert(MatchDraft).values(chunk)
         await sess.execute(stmt)
 
-    p = unique([p for m in matches for p in m['players']])
+    p = [p for m in matches for p in m['players']]
     for chunk in chunks(p, n=3000):
         stmt = upsert(MatchPlayer).values(chunk)
         await sess.execute(stmt)
 
-    x = unique([x for m in matches for x in (m['hero_movements'] or [])])
+    x = [x for m in matches for x in m['hero_movements']]
     for chunk in chunks(x, n=5000):
         stmt = upsert(MatchHeroMovement).values(chunk)
         await sess.execute(stmt)
 
-    # stmt = upsert(MatchEvent).values([e for m in matches for e in m['events']])
-    # await sess.execute(stmt)
+    e = [e for m in matches for e in m['events']]
+    for chunk in chunks(e, n=2500):
+        stmt = upsert(MatchEvent).values(chunk)
+        await sess.execute(stmt)
 
 
 @stratz_app.command(cls=RichCommand)
@@ -212,6 +214,13 @@ async def match(
 
         with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
             await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
+
+    # from rich import print
+    # import random
+
+    # print(matches)
+    # print(random.sample(matches[0].events, 15))
+    # raise SystemExit(-1)
 
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:

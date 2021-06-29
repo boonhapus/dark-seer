@@ -14,6 +14,9 @@ class Base(BaseModel):
     def to_orm(cls):
         return cls.orm_model(**cls.dict())
 
+    def __repr__(self):
+        return f'{self}'
+
 
 class GameVersion(Base):
     patch_id: int
@@ -225,6 +228,10 @@ class MatchPlayer(Base):
     party_id: Optional[int]
     is_leaver: bool
 
+    def __str__(self):
+        steam = self.steam_id
+        return f'<[s] Player: steam_id={steam}>'
+
 
 class HeroMovement(Base):
     match_id: int
@@ -233,6 +240,13 @@ class HeroMovement(Base):
     time: int
     x: int
     y: int
+
+    def __str__(self):
+        hero = self.hero_id
+        s = self.time
+        x = self.x
+        y = self.y
+        return f'<[s] Position: hero={hero} @ {s} ({x}, {y})>'
 
 
 class MatchDraft(Base):
@@ -243,26 +257,43 @@ class MatchDraft(Base):
     is_random: bool
     by_steam_id: Optional[int]
 
+    def __str__(self):
+        type_ = self.draft_type
+        num = f' #{self.draft_order}' if self.draft_order is not None else ''
+        return f'<[s] Draft: {type_}{num} for hero={self.hero_id}>'
+
 
 class MatchEvent(Base):
     match_id: int
     event_type: str
     id: int
     time: int
-    x: int
-    y: int
-    actor_id: int
-    target_id: int
-    hero_id: int
-    npc_id: int
-    ability_id: int
-    item_id: int
-    extra_data: Dict
+    x: Optional[int]
+    y: Optional[int]
+    actor_id: Optional[int]
+    target_id: Optional[int]
+    ability_id: Optional[int]
+    item_id: Optional[int]
+    extra_data: Optional[Dict]
+
+    def __str__(self):
+        t = self.event_type
+        s = self.time
+
+        if t in ('hero kill', 'hero death', 'hero assist', 'creep kill'):
+            c = f' ({self.x}, {self.y})'
+        else:
+            c = ''
+
+        return f'<[s] Event: {t} @ {s}{c}>'
 
 
 class IncompleteMatch(Base):
     match_id: int
     replay_salt: int
+
+    def __str__(self):
+        return f'<[s] IncompleteMatch id={self.match_id}>'
 
 
 class Match(Base):
@@ -287,7 +318,7 @@ class Match(Base):
     draft: List[MatchDraft]
     players: List[MatchPlayer]
     hero_movements: List[HeroMovement]
-    # events: List[MatchEvent]
+    events: List[MatchEvent]
 
     @validator('start_datetime', pre=True)
     def ensure_utc(cls, ts: int) -> dt.datetime:
@@ -334,6 +365,3 @@ class Match(Base):
 
     def __str__(self):
         return f'<[s] Match id={self.match_id}>'
-
-    def __repr__(self):
-        return f'{self}'

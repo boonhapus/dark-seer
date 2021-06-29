@@ -582,15 +582,16 @@ class Stratz(RateLimitedHTTPClient):
               isRandom
             }
             parse_player_events: players {
+              heroId
               playbackData {
                 killEvents {
                   time
                   positionX
                   positionY
-                  byAbility
-                  byItem
                   attacker
                   target
+                  byAbility
+                  byItem
                   # extra data
                   isFromIllusion
                 }
@@ -598,10 +599,10 @@ class Stratz(RateLimitedHTTPClient):
                   time
                   positionX
                   positionY
-                  byAbility
-                  byItem
                   attacker
                   target
+                  byAbility
+                  byItem
                   # extra data
                   isFromIllusion
                   goldFed
@@ -616,6 +617,43 @@ class Stratz(RateLimitedHTTPClient):
                   positionY
                   attacker
                   target
+                }
+                csEvents {
+                  time
+                  positionX
+                  positionY
+                  attacker
+                  npcId
+                  byAbility
+                  byItem
+                }
+                buyBackEvents {
+                  time
+                  heroId
+                  deathTimeRemaining
+                  cost
+                }
+                purchaseEvents {
+                  time
+                  itemId
+                }
+                itemUsedEvents {
+                  time
+                  attacker
+                  target
+                  itemId
+                }
+                abilityLearnEvents {
+                  time
+                  abilityId
+                  level
+                  levelObtained
+                }
+                abilityUsedEvents {
+                  time
+                  attacker
+                  target
+                  abilityId
                 }
               }
             }
@@ -641,14 +679,6 @@ class Stratz(RateLimitedHTTPClient):
                 # m['players']
                 #
                 m['events'] = parse_events(match)
-
-                # TODO .. remove print-data-debugging
-                # from rich import print
-                # for event_type in set(e['event_type'] for e in m['events']):
-                #     events = [e for e in m['events'] if e['event_type'] == event_type]
-                #     print(f'{event_type}: {len(events)} events')
-                # raise SystemExit(-1)
-
                 m = Match(**m)
             except ValidationError:
                 log.exception(f'missing data on match {match["id"]}')

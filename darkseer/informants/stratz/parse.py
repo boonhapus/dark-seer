@@ -1,6 +1,6 @@
 from typing import Any, Optional, List, Dict
 
-from glom import glom, T, Val, Invoke, Flatten
+from glom import glom, S, T, Val, Invoke, Flatten
 
 
 FLAT_API_RESPONSE = List[Dict[str, Any]]
@@ -56,16 +56,96 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     player_data = m['parse_match_players']
 
     # Ability Learn
-    # parse_player_events.playbackData.abilityLearnEvents
+    spec = (
+        'parse_player_events',
+        [(
+            S(hero_id='heroId'),
+            'playbackData.abilityLearnEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('ability learn'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': S.hero_id,
+                'ability_id': 'abilityId',
+                'extra_data': {
+                    'level': (T['level'], lambda x: x + 1),
+                    'hero_level': 'levelObtained'
+                }
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Ability Use
-    # parse_player_events.playbackData.abilityUsedEvents
+    spec = (
+        'parse_player_events',
+        [(
+            'playbackData.abilityUsedEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('ability use'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': 'attacker',
+                'target_id': 'target',
+                'ability_id': 'abilityId'
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Item Purchase
-    # parse_player_events.playbackData.purchaseEvents
+    spec = (
+        'parse_player_events',
+        [(
+            S(hero_id='heroId'),
+            'playbackData.purchaseEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('item purchase'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': S.hero_id,
+                'item_id': 'itemId'
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Item Use
-    # parse_player_events.playbackData.itemUsedEvents
+    spec = (
+        'parse_player_events',
+        [(
+            'playbackData.itemUsedEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('item use'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': 'attacker',
+                'target_id': 'target',
+                'item_id': 'itemId'
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Kill
     spec = (
@@ -74,15 +154,15 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
             'playbackData.killEvents',
             [{
                 'match_id': match_id,
-                'event_type': Val('hero_kill'),
+                'event_type': Val('hero kill'),
                 # 'id': ...,
                 'time': 'time',
                 'x': 'positionX',
                 'y': 'positionY',
-                'ability_id': 'byAbility',
-                'item_id': 'byItem',
                 'actor_id': 'attacker',
                 'target_id': 'target',
+                'ability_id': 'byAbility',
+                'item_id': 'byItem',
                 'extra_data': {
                     'is_from_illusion': 'isFromIllusion'
                 }
@@ -102,15 +182,15 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
             'playbackData.deathEvents',
             [{
                 'match_id': match_id,
-                'event_type': Val('hero_death'),
+                'event_type': Val('hero death'),
                 # 'id': ...,
                 'time': 'time',
                 'x': 'positionX',
                 'y': 'positionY',
-                'ability_id': 'byAbility',
-                'item_id': 'byItem',
                 'actor_id': 'attacker',
                 'target_id': 'target',
+                'ability_id': 'byAbility',
+                'item_id': 'byItem',
                 'extra_data': {
                     'is_from_illusion': 'isFromIllusion',
                     'gold_fed': 'goldFed',
@@ -134,7 +214,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
             'playbackData.assistEvents',
             [{
                 'match_id': match_id,
-                'event_type': Val('hero_assist'),
+                'event_type': Val('hero assist'),
                 # 'id': ...,
                 'time': 'time',
                 'x': 'positionX',
@@ -151,15 +231,59 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     r.extend(glom(m, spec))
 
     # Creep Kill
-    # parse_player_events.playbackData.csEvents
+    spec = (
+        'parse_player_events',
+        [(
+            'playbackData.csEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('creep kill'),
+                # 'id': ...,
+                'time': 'time',
+                'x': 'positionX',
+                'y': 'positionY',
+                'actor_id': 'attacker',
+                'target_id': 'npcId',
+                'ability_id': 'byAbility',
+                'item_id': 'byItem'
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Creep Deny
+    # these don't exist ;o
 
     # Gold Change
     # Experience Change
 
     # Buyback
-    # parse_player_events.playbakData.buyBackEvents
+    spec = (
+        'parse_player_events',
+        [(
+            'playbackData.buyBackEvents',
+            [{
+                'match_id': match_id,
+                'event_type': Val('buyback'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': 'heroId',
+                'extra_data': {
+                    'death_timer_remaining_s': 'deathTimeRemaining',
+                    'buyback_cost': 'cost'
+                }
+            }]
+        )],
+        Flatten(),
+        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Courier Death
     # Ward Placed
