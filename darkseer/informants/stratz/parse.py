@@ -1,6 +1,6 @@
 from typing import Any, Optional, List, Dict
 
-from glom import glom, S, T, Val, Invoke, Flatten
+from glom import glom, S, T, Val, SKIP, Invoke, Check, Match, Flatten
 
 
 FLAT_API_RESPONSE = List[Dict[str, Any]]
@@ -47,6 +47,25 @@ def _parse_draft_actor(
         return None
 
     return players[player_idx].get('steamAccountId')
+
+
+def is_a_creep(npc_id: int) -> bool:
+    """
+    """
+    # Buildings
+    if 16 < npc_id < 49:
+        return False
+
+    # Wards
+    if npc_id in (110, 111):
+        return False
+
+    # Couriers
+    if npc_id in (112, 113):
+        return False
+
+    # Yup, it's a creep.
+    return True
 
 
 def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
@@ -235,25 +254,27 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
         'parse_player_events',
         [(
             'playbackData.csEvents',
-            [{
-                'match_id': match_id,
-                'event_type': Val('creep kill'),
-                # 'id': ...,
-                'time': 'time',
-                'x': 'positionX',
-                'y': 'positionY',
-                'actor_id': 'attacker',
-                'target_id': 'npcId',
-                'ability_id': 'byAbility',
-                'item_id': 'byItem'
-            }]
+            [(
+                Check(T['npcId'], validate=is_a_creep, default=SKIP),
+                {
+                    'match_id': match_id,
+                    'event_type': Val('creep kill'),
+                    # 'id': ...,
+                    'time': 'time',
+                    'x': 'positionX',
+                    'y': 'positionY',
+                    'actor_id': 'attacker',
+                    'target_id': 'npcId',
+                    'ability_id': 'byAbility',
+                    'item_id': 'byItem'
+                }
+            )]
         )],
         Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        # Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
+        # Invoke(enumerate).specs(T),
+        # [lambda e: {**e[1], 'id': e[0]}]
     )
-    r.extend(glom(m, spec))
 
     # Creep Deny
     # these don't exist ;o
@@ -286,10 +307,23 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     r.extend(glom(m, spec))
 
     # Courier Death
-    # Ward Placed
-    # Ward Destroyed
+    # Look for CSEvents where NPC_ID = 112, 113
+
+    # Observer Ward Placed
+    # Sentry Ward Placed
+
+    # Observer Ward Destroyed
+    # Look for CSEvents where NPC_ID = 110
+
+    # Sentry Ward Destroyed
+    # Look for CSEvents where NPC_ID = 111
+
     # Roshan Death
+    # Look for CSEvents where NPC_ID = 133
+
     # Building Death
+    # Look for CSEvents where 16 < NPC_ID < 49
+
     # Rune Spawn
     # Rune Taken
     return r
