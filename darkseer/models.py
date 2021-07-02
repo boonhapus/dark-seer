@@ -242,10 +242,22 @@ class Match(Base):
         return f'<[m] {ranked}Match: [{dt}] {id} - Winner: {winner}>'
 
 
+class MatchTag(Base):
+    __tablename__ = 'match_tag'
+
+    match_id = Column(BigInteger, ForeignKey('match.match_id', ondelete='CASCADE'), primary_key=True)
+    tag = Column(String, primary_key=True)
+
+    def __str__(self):
+        id = self.match_id
+        tag = self.tag
+        return f'<[m] MatchTag: {id} - {tag}>'
+
+
 class MatchPlayer(Base):
     __tablename__ = 'match_player'
 
-    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id', ondelete='CASCADE'), primary_key=True)
     hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     steam_id = Column(BigInteger, ForeignKey('account.steam_id'), nullable=True)
     slot = Column(Integer)
@@ -260,7 +272,7 @@ class MatchPlayer(Base):
 class MatchHeroMovement(Base):
     __tablename__ = 'match_hero_movement'
 
-    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id', ondelete='CASCADE'), primary_key=True)
     hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     id = Column(Integer, primary_key=True)
     time = Column(SmallInteger)
@@ -278,7 +290,7 @@ class MatchHeroMovement(Base):
 class MatchDraft(Base):
     __tablename__ = 'match_draft'
 
-    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id', ondelete='CASCADE'), primary_key=True)
     hero_id = Column(SmallInteger, ForeignKey('hero.hero_id'), primary_key=True)
     draft_type = Column(String, primary_key=True, comment='ban vote, system generated ban, ban, pick')
     draft_order = Column(Integer)
@@ -317,7 +329,7 @@ class MatchEvent(Base):
     """
     __tablename__ = 'match_event'
 
-    match_id = Column(BigInteger, ForeignKey('match.match_id'), primary_key=True)
+    match_id = Column(BigInteger, ForeignKey('match.match_id', ondelete='CASCADE'), primary_key=True)
     event_type = Column(String, primary_key=True)
     id = Column(Integer, primary_key=True)
     time = Column(SmallInteger)
