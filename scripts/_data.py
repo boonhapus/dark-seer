@@ -421,7 +421,7 @@ async def ability(
 @_coro
 async def setup_database(
     patch: str=O_('7.00', help='Game Version of the Hero to get data for.'),
-    since: bool=O_(True, '--since', help='Get data on all patches since.'),
+    since: bool=O_(False, '--since', help='Get data on all patches since.'),
     token: str=O_(
         None, help='STRATZ Bearer token for elevated requests permission.',
         envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
