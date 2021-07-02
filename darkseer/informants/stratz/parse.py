@@ -1,6 +1,6 @@
 from typing import Any, Optional, List, Dict
 
-from glom import glom, S, T, Val, SKIP, Invoke, Check, Match, Flatten
+from glom import glom, S, T, Val, Invoke, Flatten
 
 
 FLAT_API_RESPONSE = List[Dict[str, Any]]
@@ -49,23 +49,29 @@ def _parse_draft_actor(
     return players[player_idx].get('steamAccountId')
 
 
-def is_a_creep(npc_id: int) -> bool:
+def classify_cs_target_event(npc_id: int) -> str:
     """
+    Map a csEvent target npcId to a match_event type.
     """
     # Buildings
     if 16 < npc_id < 49:
-        return False
+        return 'building destroy'
 
     # Wards
-    if npc_id in (110, 111):
-        return False
+    if npc_id == 110:
+        return 'observer deward'
+
+    if npc_id == 111:
+        return 'sentry deward'
 
     # Couriers
     if npc_id in (112, 113):
-        return False
+        return 'courier snipe'
 
-    # Yup, it's a creep.
-    return True
+    if npc_id == 133:
+        return 'roshan death'
+
+    return 'creep kill'
 
 
 def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
@@ -250,31 +256,34 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     r.extend(glom(m, spec))
 
     # Creep Kill
+    # Courier Snipe
+    # Observer Deward
+    # Sentry Deward
+    # Roshan Death
+    # Building Destroy
     spec = (
         'parse_player_events',
         [(
             'playbackData.csEvents',
-            [(
-                Check(T['npcId'], validate=is_a_creep, default=SKIP),
-                {
-                    'match_id': match_id,
-                    'event_type': Val('creep kill'),
-                    # 'id': ...,
-                    'time': 'time',
-                    'x': 'positionX',
-                    'y': 'positionY',
-                    'actor_id': 'attacker',
-                    'target_id': 'npcId',
-                    'ability_id': 'byAbility',
-                    'item_id': 'byItem'
-                }
-            )]
+            [{
+                'match_id': match_id,
+                'event_type': Invoke(classify_cs_target_event).specs(T['npcId']),
+                # 'id': ...,
+                'time': 'time',
+                'x': 'positionX',
+                'y': 'positionY',
+                'actor_id': 'attacker',
+                'target_id': 'npcId',
+                'ability_id': 'byAbility',
+                'item_id': 'byItem'
+            }]
         )],
         Flatten(),
-        # Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        # Invoke(enumerate).specs(T),
-        # [lambda e: {**e[1], 'id': e[0]}]
+        Invoke(sorted).specs(T).constants(key=lambda d: (d['event_type'], d['time'])),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
     )
+    r.extend(glom(m, spec))
 
     # Creep Deny
     # these don't exist ;o
@@ -306,24 +315,10 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     )
     r.extend(glom(m, spec))
 
-    # Courier Death
-    # Look for CSEvents where NPC_ID = 112, 113
-
     # Observer Ward Placed
     # Sentry Ward Placed
 
-    # Observer Ward Destroyed
-    # Look for CSEvents where NPC_ID = 110
-
-    # Sentry Ward Destroyed
-    # Look for CSEvents where NPC_ID = 111
-
-    # Roshan Death
-    # Look for CSEvents where NPC_ID = 133
-
-    # Building Death
-    # Look for CSEvents where 16 < NPC_ID < 49
-
     # Rune Spawn
     # Rune Taken
+
     return r
