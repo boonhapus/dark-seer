@@ -678,6 +678,23 @@ class Stratz(RateLimitedHTTPClient):
                   target
                   abilityId
                 }
+                playerUpdateGoldEvents {
+                  time
+                  gold
+                  networth
+                  networthDifference
+                  unreliableGold
+                }
+                goldEvents {
+                  time
+                  amount
+                  reason
+                }
+                experienceEvents {
+                  time
+                  amount
+                  reason
+                }
               }
             }
           }

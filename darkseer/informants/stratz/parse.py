@@ -326,8 +326,75 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     # Creep Deny
     # these don't exist ;o
 
-    # Gold Change
-    # Experience Change
+    # Gold Update (each signficant second)
+    spec = (
+        S(match_id='id'),
+        'parse_player_events',
+        [(
+            S(hero_id='heroId'),
+            'playbackData.playerUpdateGoldEvents',
+            [{
+                'match_id': S.match_id,
+                'event_type': Val('gold update'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': S.hero_id,
+                'extra_data': {
+                    'gold': 'gold',
+                    'networth': 'networth',
+                    'unreliable_gold': 'unreliableGold'
+                }
+            }]
+        )],
+        Flatten()
+    )
+    r.extend(glom(m, spec))
+
+    # Gold Gain
+    spec = (
+        S(match_id='id'),
+        'parse_player_events',
+        [(
+            S(hero_id='heroId'),
+            'playbackData.goldEvents',
+            [{
+                'match_id': S.match_id,
+                'event_type': Val('gold gain'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': S.hero_id,
+                'extra_data': {
+                    'reason': 'reason',
+                    'gold': 'amount'
+                }
+            }]
+        )],
+        Flatten()
+    )
+    r.extend(glom(m, spec))
+
+    # Experience Gain
+    spec = (
+        S(match_id='id'),
+        'parse_player_events',
+        [(
+            S(hero_id='heroId'),
+            'playbackData.experienceEvents',
+            [{
+                'match_id': S.match_id,
+                'event_type': Val('experience gain'),
+                # 'id': ...,
+                'time': 'time',
+                'actor_id': S.hero_id,
+                'extra_data': {
+                    'reason': 'reason',
+                    'xp': 'amount'
+                }
+            }]
+        )],
+        Flatten()
+    )
+    r.extend(glom(m, spec))
 
     # Buyback
     spec = (
