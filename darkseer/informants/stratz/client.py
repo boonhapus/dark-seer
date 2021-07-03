@@ -581,54 +581,64 @@ class Stratz(RateLimitedHTTPClient):
               # extra data for parsing
               isRandom
             }
-            parse_match_events: playbackData {
-              wardEvents {
-                time
-                wardType
-                fromPlayer
-                action
-                indexId
-                positionX
-                positionY
-              }
-            }
+            # parse_match_events: playbackData {
+            #   wardEvents {
+            #     time
+            #     wardType
+            #     fromPlayer
+            #     action
+            #     indexId
+            #     positionX
+            #     positionY
+            #   }
+            # }
             parse_player_events: players {
               heroId
-              playbackData {
+              stats {
                 killEvents {
                   time
                   positionX
                   positionY
-                  attacker
                   target
                   byAbility
                   byItem
-                  # extra data
-                  isFromIllusion
                 }
                 deathEvents {
                   time
                   positionX
                   positionY
                   attacker
-                  target
                   byAbility
                   byItem
-                  # extra data
-                  isFromIllusion
                   goldFed
                   goldLost
-                  reliableGold
-                  unreliableGold
-                  timeDead
                 }
                 assistEvents {
                   time
                   positionX
                   positionY
-                  attacker
                   target
                 }
+                itemPurchases {
+                  time
+                  itemId
+                }
+                wards {
+                  time
+                  positionX
+                  positionY
+                  type
+                }
+                runes {
+                  time
+                  positionX
+                  positionY
+                  rune
+                  action
+                  gold
+                }
+              }
+              playbackData {
                 csEvents {
                   time
                   positionX
@@ -643,10 +653,6 @@ class Stratz(RateLimitedHTTPClient):
                   heroId
                   deathTimeRemaining
                   cost
-                }
-                purchaseEvents {
-                  time
-                  itemId
                 }
                 itemUsedEvents {
                   time
@@ -694,6 +700,9 @@ class Stratz(RateLimitedHTTPClient):
             except ValidationError:
                 log.exception(f'missing data on match {match["id"]}')
                 m = IncompleteMatch(match_id=match['id'], replay_salt=match['replaySalt'])
+
+            print(m)
+            raise SystemExit(-1)
 
             matches.append(m)
 
