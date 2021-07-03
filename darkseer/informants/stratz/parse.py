@@ -223,6 +223,10 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'target_id': 'target',
                 'ability_id': 'byAbility',
                 'item_id': 'byItem',
+                'extra_data': {
+                    'gold': 'gold',
+                    'xp': 'xp'
+                }
             }]
         )],
         Flatten()
@@ -248,8 +252,9 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'ability_id': 'byAbility',
                 'item_id': 'byItem',
                 'extra_data': {
-                    'gold_fed': 'goldFed',
-                    'gold_lost': 'goldLost',
+                    'gold': 'goldFed',
+                    'xp': 'xpFed',
+                    'gold_lost': 'goldLost'
                 }
             }]
         )],
@@ -273,6 +278,10 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'y': 'positionY',
                 'actor_id': S.hero_id,
                 'target_id': 'target',
+                'extra_data': {
+                    'gold': 'gold',
+                    'xp': 'xp'
+                }
             }]
         )],
         Flatten()
@@ -300,7 +309,11 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'actor_id': 'attacker',
                 'target_id': 'npcId',
                 'ability_id': 'byAbility',
-                'item_id': 'byItem'
+                'item_id': 'byItem',
+                'extra_data': {
+                    'gold': 'gold',
+                    'xp': 'xp'
+                }
             }]
         )],
         Flatten(),
@@ -387,6 +400,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'y': 'positionY',
                 'extra_data': {
                     'rune': ('rune', str.lower),
+                    'gold': 'gold'
                 }
             }]
         )],

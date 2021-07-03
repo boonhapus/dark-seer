@@ -601,6 +601,8 @@ class Stratz(RateLimitedHTTPClient):
                   target
                   byAbility
                   byItem
+                  gold
+                  xp
                 }
                 deathEvents {
                   time
@@ -610,6 +612,7 @@ class Stratz(RateLimitedHTTPClient):
                   byAbility
                   byItem
                   goldFed
+                  xpFed
                   goldLost
                 }
                 assistEvents {
@@ -617,6 +620,8 @@ class Stratz(RateLimitedHTTPClient):
                   positionX
                   positionY
                   target
+                  gold
+                  xp
                 }
                 itemPurchases {
                   time
@@ -646,6 +651,8 @@ class Stratz(RateLimitedHTTPClient):
                   npcId
                   byAbility
                   byItem
+                  gold
+                  xp
                 }
                 buyBackEvents {
                   time
