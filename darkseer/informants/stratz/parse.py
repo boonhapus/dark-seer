@@ -141,10 +141,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 }
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -164,10 +161,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'ability_id': 'abilityId'
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -187,10 +181,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'item_id': 'itemId'
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -210,10 +201,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'item_id': 'itemId'
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -237,10 +225,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'item_id': 'byItem',
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -268,10 +253,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 }
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -293,10 +275,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 'target_id': 'target',
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -355,10 +334,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 }
             }]
         )],
-        Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: d['time']),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
+        Flatten()
     )
     r.extend(glom(m, spec))
 
@@ -387,9 +363,6 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
             }]
         )],
         Flatten(),
-        Invoke(sorted).specs(T).constants(key=lambda d: (d['event_type'], d['time'])),
-        Invoke(enumerate).specs(T),
-        [lambda e: {**e[1], 'id': e[0]}]
     )
     r.extend(glom(m, spec))
 
@@ -417,11 +390,16 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 }
             }]
         )],
-        Flatten(),
+        Flatten()
+    )
+    r.extend(glom(m, spec))
+
+    # Assign IDs all the way through each event type
+    spec = (
         Invoke(sorted).specs(T).constants(key=lambda d: (d['event_type'], d['time'])),
         Invoke(enumerate).specs(T),
         [lambda e: {**e[1], 'id': e[0]}]
     )
-    r.extend(glom(m, spec))
+    r = glom(r, spec)
 
     return r
