@@ -110,7 +110,6 @@ MATCH_SPEC = {
     'radiant_team_id': 'radiantTeamId',
     'dire_team_id': 'direTeamId',
     'start_datetime': 'startDateTime',
-    'is_stats': 'isStats',
     'winning_faction': 'didRadiantWin',
     'duration': 'durationSeconds',
     'region': 'regionId',
@@ -142,6 +141,7 @@ MATCH_SPEC = {
         #   3. for each draft type element
         #      - prioritze banned hero ids over hero ids
         #      - parse content not easily glom'd with custom functions
+        #
         S(match_id='id'),
         S(players='parse_match_players'),
         'parse_match_draft.pick_bans',
@@ -160,6 +160,7 @@ MATCH_SPEC = {
         #   1. retain a reference to match_id
         #   2. for each player
         #      - map data apporpriately
+        #
         S(match_id='id'),
         'parse_match_players',
         [{
@@ -181,6 +182,7 @@ MATCH_SPEC = {
         #         - map the data appropriately
         #         - enumerate all existing data points
         #   3. flatten the list of list (2 produces a list, 2b produces a list)
+        #
         S(match_id='id'),
         'parse_hero_movements',
         [(

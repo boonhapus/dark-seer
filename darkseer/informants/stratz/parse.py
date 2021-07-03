@@ -157,7 +157,7 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
                 # 'id': ...,
                 'time': 'time',
                 'actor_id': 'attacker',
-                'target_id': 'target',
+                'target_id': Invoke(lambda x: None if x == 0 else x).specs(T['target']),
                 'ability_id': 'abilityId'
             }]
         )],
