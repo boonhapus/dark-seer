@@ -701,9 +701,6 @@ class Stratz(RateLimitedHTTPClient):
                 log.exception(f'missing data on match {match["id"]}')
                 m = IncompleteMatch(match_id=match['id'], replay_salt=match['replaySalt'])
 
-            print(m)
-            raise SystemExit(-1)
-
             matches.append(m)
 
         return matches
