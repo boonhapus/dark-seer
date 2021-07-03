@@ -75,47 +75,47 @@ def classify_cs_target_event(npc_id: int) -> str:
     return 'creep kill'
 
 
-def classify_ward_activity(ward_event: Dict) -> str:
-    """
-    """
-    s = 'observer' if ward_event['wardType'] == 0 else 'sentry'
-    s += ' plant' if ward_event['action'] == 0 else ' despawn'
-    return s
+# def classify_ward_activity(ward_event: Dict) -> str:
+#     """
+#     """
+#     s = 'observer' if ward_event['wardType'] == 0 else 'sentry'
+#     s += ' plant' if ward_event['action'] == 0 else ' despawn'
+#     return s
 
 
-def is_dewarded(player_events: Dict, spawn: int) -> bool:
-    """
-    """
-    npc_id, max_secs = (110, 360) if spawn['type'] == 0 else (111, 480)
-    despawn_time = 999
+# def is_dewarded(player_events: Dict, spawn: int) -> bool:
+#     """
+#     """
+#     npc_id, max_secs = (110, 360) if spawn['type'] == 0 else (111, 480)
+#     despawn_time = 999
 
-    for i, player in enumerate(player_events):
-        for event in player['playbackData']['csEvents']:
-            if (
-                event['npcId'] == npc_id
-                and event['time'] >= spawn['time']
-                and event['positionX'] == spawn['positionX']
-                and event['positionY'] == spawn['positionY']
-            ):
-                print(
-                    'found a matching deward event!'
-                    f'\n     spawn: {spawn}'
-                    f'\n   despawn: {event}'
-                    f'\n  duration: {event["time"] - spawn["time"]}'
-                )
-                despawn_time = event['time']
+#     for i, player in enumerate(player_events):
+#         for event in player['playbackData']['csEvents']:
+#             if (
+#                 event['npcId'] == npc_id
+#                 and event['time'] >= spawn['time']
+#                 and event['positionX'] == spawn['positionX']
+#                 and event['positionY'] == spawn['positionY']
+#             ):
+#                 print(
+#                     'found a matching deward event!'
+#                     f'\n     spawn: {spawn}'
+#                     f'\n   despawn: {event}'
+#                     f'\n  duration: {event["time"] - spawn["time"]}'
+#                 )
+#                 despawn_time = event['time']
 
-    # Difference between the two times. IF time is before the horn, it's negative, and
-    # we're subtracting a negative number, which is just addition. Checks out.
-    duration = despawn_time - spawn['time']
+#     # Difference between the two times. IF time is before the horn, it's negative, and
+#     # we're subtracting a negative number, which is just addition. Checks out.
+#     duration = despawn_time - spawn['time']
 
-    return duration < max_secs
+#     return duration < max_secs
 
 
-def ward_duration(ward_events: Dict, spawn: int, match_duration: int) -> int:
-    """
-    """
-    return 999
+# def ward_duration(ward_events: Dict, spawn: int, match_duration: int) -> int:
+#     """
+#     """
+#     return 999
 
 
 def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
