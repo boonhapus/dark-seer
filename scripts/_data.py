@@ -17,8 +17,8 @@ import sqlalchemy as sa
 import typer
 
 from ._async import _coro
-from ._db import db_options
 from ._ux import console, RichGroup, RichCommand
+from .common import extra_options
 
 
 app = typer.Typer(
@@ -102,20 +102,17 @@ async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def patch(
     patch: str=O_(None, help='Specific patch to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect Game Version data.
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     with console.status('collecting data on patches..'):
         async with Stratz(bearer_token=token) as api:
@@ -128,21 +125,18 @@ async def patch(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def tournament(
     matches: bool=O_(False, '--matches', help='Whether or not to grab matches.'),
     league_id: int=O_(None, help='Specific league to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect Tournament data.
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     async with Stratz(bearer_token=token) as api:
         with console.status('collecting data on tournaments..'):
@@ -180,15 +174,11 @@ async def tournament(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def match(
     match_id: List[int]=O_(None, help='Match ID to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect Match data.
@@ -201,8 +191,8 @@ async def match(
         match_id = list(iter(match_id))
     except TypeError:
         match_id = [match_id]
-
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     async with Stratz(bearer_token=token) as api:
         s = 's' if len(match_id) > 1 else ''
@@ -233,22 +223,19 @@ async def match(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def hero(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     hero_id: str=O_(None, help='Specific Hero to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect Hero history data.
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     async with db.session() as sess:
         patches = await get_patches_since(sess=sess, patch=patch, since=since)
@@ -279,22 +266,19 @@ async def hero(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def item(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     item_id: str=O_(None, help='Specific Item to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect Item history data.
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     async with db.session() as sess:
         patches = await get_patches_since(sess=sess, patch=patch, since=since)
@@ -325,22 +309,19 @@ async def item(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def npc(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     npc_id: str=O_(None, help='Specific NPC to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect NPC history data.
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     async with db.session() as sess:
         patches = await get_patches_since(sess=sess, patch=patch, since=since)
@@ -371,22 +352,19 @@ async def npc(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def ability(
     patch: str=O_(None, help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
     ability_id: str=O_(None, help='Specific Ability to get data for.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Collect Ability history data.
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     async with db.session() as sess:
         patches = await get_patches_since(sess=sess, patch=patch, since=since)
@@ -417,16 +395,12 @@ async def ability(
 
 
 @stratz_app.command(cls=RichCommand)
-@db_options
+@extra_options(database=True, rest=True)
 @_coro
 async def setup_database(
     patch: str=O_('7.00', help='Game Version of the Hero to get data for.'),
     since: bool=O_(False, '--since', help='Get data on all patches since.'),
-    token: str=O_(
-        None, help='STRATZ Bearer token for elevated requests permission.',
-        envvar='DARKSEER_STRATZ_TOKEN', show_envvar=False
-    ),
-    **db_options
+    **extra_options
 ):
     """
     Setup the Darkseer database.
@@ -439,7 +413,8 @@ async def setup_database(
       - NPCs
       - Tournaments (all available from STRATZ)
     """
-    db = Database(**db_options)
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
 
     # 1. patches
     # 2. tournaments
