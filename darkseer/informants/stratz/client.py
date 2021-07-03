@@ -581,6 +581,17 @@ class Stratz(RateLimitedHTTPClient):
               # extra data for parsing
               isRandom
             }
+            parse_match_events: playbackData {
+              wardEvents {
+                time
+                wardType
+                fromPlayer
+                action
+                indexId
+                positionX
+                positionY
+              }
+            }
             parse_player_events: players {
               heroId
               playbackData {

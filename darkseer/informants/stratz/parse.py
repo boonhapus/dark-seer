@@ -1,6 +1,7 @@
 from typing import Any, Optional, List, Dict
 
-from glom import glom, S, T, Val, Invoke, Flatten
+from glom import glom, S, T, Val, Invoke, Check, Flatten, SKIP
+from rich import print
 
 
 FLAT_API_RESPONSE = List[Dict[str, Any]]
@@ -74,20 +75,58 @@ def classify_cs_target_event(npc_id: int) -> str:
     return 'creep kill'
 
 
+def classify_ward_activity(ward_event: Dict) -> str:
+    """
+    """
+    s = 'observer' if ward_event['wardType'] == 0 else 'sentry'
+    s += ' plant' if ward_event['action'] == 0 else ' despawn'
+    return s
+
+
+def is_dewarded(ward_events: Dict, ward_id: int) -> bool:
+    """
+    """
+    spawn    = next(e for e in ward_events if e['indexId'] == ward_id and e['action'] == 0)
+    despawn  = next((e for e in ward_events if e['indexId'] == ward_id and e['action'] == 1), {})
+    max_secs = 360 if (spawn['wardType'] == 0) else 480
+
+    if spawn['time'] < 0:
+        duration = despawn['time'] + abs(spawn['time'])
+    else:
+        duration = despawn.get('time', 999) - spawn['time']
+
+    return duration < max_secs
+
+
+def ward_duration(ward_events: Dict, ward_id: int, match_duration: int) -> int:
+    """
+    """
+    spawn    = next(e for e in ward_events if e['indexId'] == ward_id and e['action'] == 0)
+    despawn  = next((e for e in ward_events if e['indexId'] == ward_id and e['action'] == 1), {})
+
+    if spawn['time'] < 0:
+        duration = despawn['time'] + abs(spawn['time'])
+    else:
+        duration = despawn.get('time', match_duration) - spawn['time']
+
+    print(f"{spawn['indexId']}, {spawn['wardType']}, {spawn['time']}, {despawn.get('time', '-')}, {duration}")
+
+    max_secs = 360 if (spawn['wardType'] == 0) else 480
+    return min(duration, max_secs)
+
+
 def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     r = []
 
-    match_id = Val(m['id'])
-    player_data = m['parse_match_players']
-
     # Ability Learn
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             S(hero_id='heroId'),
             'playbackData.abilityLearnEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('ability learn'),
                 # 'id': ...,
                 'time': 'time',
@@ -108,11 +147,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Ability Use
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.abilityUsedEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('ability use'),
                 # 'id': ...,
                 'time': 'time',
@@ -130,12 +170,13 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Item Purchase
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             S(hero_id='heroId'),
             'playbackData.purchaseEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('item purchase'),
                 # 'id': ...,
                 'time': 'time',
@@ -152,11 +193,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Item Use
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.itemUsedEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('item use'),
                 # 'id': ...,
                 'time': 'time',
@@ -174,11 +216,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Kill
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.killEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('hero kill'),
                 # 'id': ...,
                 'time': 'time',
@@ -202,11 +245,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Death
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.deathEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('hero death'),
                 # 'id': ...,
                 'time': 'time',
@@ -234,11 +278,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Assist
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.assistEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('hero assist'),
                 # 'id': ...,
                 'time': 'time',
@@ -262,11 +307,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     # Roshan Death
     # Building Destroy
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.csEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Invoke(classify_cs_target_event).specs(T['npcId']),
                 # 'id': ...,
                 'time': 'time',
@@ -293,11 +339,12 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
 
     # Buyback
     spec = (
+        S(match_id='id'),
         'parse_player_events',
         [(
             'playbackData.buyBackEvents',
             [{
-                'match_id': match_id,
+                'match_id': S.match_id,
                 'event_type': Val('buyback'),
                 # 'id': ...,
                 'time': 'time',
@@ -315,8 +362,32 @@ def parse_events(m) -> Optional[FLAT_API_RESPONSE]:
     )
     r.extend(glom(m, spec))
 
-    # Observer Ward Placed
-    # Sentry Ward Placed
+    # Observer Ward Planted
+    # Sentry Ward Planted
+    spec = (
+        S(match_id='id'),
+        S(all_ward_events='parse_match_events.wardEvents'),
+        S(match_duration='durationSeconds'),
+        'parse_match_events.wardEvents',
+        [Check(validate=lambda e: e['action'] == 0, default=SKIP)],
+        [{
+            'match_id': S.match_id,
+            'event_type': Invoke(classify_ward_activity).specs(T),
+            # 'id': ...,
+            'time': 'time',
+            'actor_id': 'fromPlayer',
+            'x': 'positionX',
+            'y': 'positionY',
+            'extra_data': {
+                'is_dewarded': Invoke(is_dewarded).specs(S.all_ward_events, ward_id='indexId'),
+                'ward_duration': Invoke(ward_duration).specs(S.all_ward_events, ward_id='indexId', match_duration=S.match_duration)
+            }
+        }],
+        Invoke(sorted).specs(T).constants(key=lambda d: (d['event_type'], d['time'])),
+        Invoke(enumerate).specs(T),
+        [lambda e: {**e[1], 'id': e[0]}]
+    )
+    r.extend(glom(m, spec))
 
     # Rune Spawn
     # Rune Taken
