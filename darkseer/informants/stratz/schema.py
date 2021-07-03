@@ -306,7 +306,6 @@ class Match(Base):
     dire_team_id: Optional[int]
     start_datetime: dt.datetime
     winning_faction: str
-    is_stats: bool
     duration: int
     region: str
     lobby_type: str

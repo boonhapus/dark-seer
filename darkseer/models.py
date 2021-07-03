@@ -227,7 +227,6 @@ class Match(Base):
     radiant_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'), nullable=True)
     dire_team_id = Column(BigInteger, ForeignKey('competitive_team.team_id'), nullable=True)
     start_datetime = Column(DateTime, comment='held as naive, but UTC')
-    is_stats = Column(Boolean)
     winning_faction = Column(String)
     duration = Column(Integer, comment='held as seconds')
     region = Column(String)

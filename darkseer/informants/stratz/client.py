@@ -505,7 +505,6 @@ class Stratz(RateLimitedHTTPClient):
             radiantTeamId
             direTeamId
             startDateTime
-            isStats
             didRadiantWin
             durationSeconds
             regionId
