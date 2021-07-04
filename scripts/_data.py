@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,9 +28,6 @@ app = typer.Typer(
     cls=RichGroup
 )
 
-stratz_app = typer.Typer(help='Collect data from Stratz.', cls=RichGroup)
-app.add_typer(stratz_app, name='stratz')
-
 
 async def get_patches_since(*, sess: AsyncSession, patch: str, since: bool):
     """
@@ -49,7 +46,7 @@ async def get_patches_since(*, sess: AsyncSession, patch: str, since: bool):
     return await sess.execute(stmt)
 
 
-def unique(duplicated):
+def unique(duplicated: List[Dict]) -> List[Dict]:
     intermediary = {tuple(e.items()) for e in duplicated}
     return [dict(e) for e in intermediary]
 
@@ -59,46 +56,49 @@ async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
     """
     matches = [m.dict() for m in matches]
     deps = ('tournament', 'teams', 'accounts', 'draft', 'players', 'hero_movements', 'events')
+    coros = []
 
     t = unique([m['tournament'] for m in matches if m['tournament'] is not None])
     for chunk in chunks(t, n=5000):
         stmt = upsert(Tournament).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     c = unique([c for m in matches for c in m['teams']])
     for chunk in chunks(c, n=6000):
         stmt = upsert(CompetitiveTeam).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     m = [{k: v for k, v in m.items() if k not in deps} for m in matches]
     for chunk in chunks(m, n=2500):
         stmt = upsert(Match).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     a = unique([a for m in matches for a in m['accounts']])
     for chunk in chunks(a, n=10000):
         stmt = upsert(Account).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     d = [d for m in matches for d in m['draft']]
     for chunk in chunks(d, n=5000):
         stmt = upsert(MatchDraft).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     p = [p for m in matches for p in m['players']]
     for chunk in chunks(p, n=3000):
         stmt = upsert(MatchPlayer).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     x = [x for m in matches for x in m['hero_movements']]
     for chunk in chunks(x, n=5000):
         stmt = upsert(MatchHeroMovement).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
 
     e = [e for m in matches for e in m['events']]
     for chunk in chunks(e, n=2500):
         stmt = upsert(MatchEvent).values(chunk)
-        await sess.execute(stmt)
+        coros.append(sess.execute(stmt))
+
+    await asyncio.gather(*coros)
 
 
 @app.command(cls=RichCommand)
@@ -113,18 +113,14 @@ async def missing(
     token = extra_options.pop('stratz_token')
     db = Database(**extra_options)
 
-    with console.status('fetching missing matches from the darskeer database..') as status:
+    with console.status('fetching missing matches from the darskeer database..'):
         async with db.session() as sess:
             stmt = sa.select(StagingReparseMatch.match_id)
             r = await sess.execute(stmt)
             match_ids = [match_id for match_id in r.scalars()]
 
-    match_ids = match_ids[:21]
-
     async with Stratz(bearer_token=token) as api:
-        s = 's' if len(match_ids) > 1 else ''
-
-        with console.status(f'collecting data on {len(match_ids)} match id{s}..'):
+        with console.status(f'collecting data on {len(match_ids)} matches..'):
             gathered = await asyncio.gather(*[
                 api.matches(match_ids=chunk) for chunk in chunks(match_ids, n=10)
             ])
@@ -140,11 +136,16 @@ async def missing(
             status.update(f'writing {len(matches)} matches to the darkseer database')
             await write_matches(sess, matches)
 
-            status.update(f'deleting {len(matches)} matches from the stage')
-            stmt = sa.delete(StagingReparseMatch).filter(StagingReparseMatch.match_id.in_([v.match_id for v in matches]))
-            await sess.execute(stmt)
-
             if incomplete:
+                status.update(f'deleting {len(matches)} matches from the stage')
+                stmt = (
+                    sa.delete(StagingReparseMatch)
+                      .filter(
+                        StagingReparseMatch.match_id.in_([v.match_id for v in matches])
+                      )
+                )
+                await sess.execute(stmt)
+
                 status.update(f'writing {len(incomplete)} matches to the stage')
                 stmt = upsert(StagingReparseMatch).values([v.dict() for v in incomplete])
                 await sess.execute(stmt)
@@ -157,7 +158,7 @@ async def pro_pubs(
     **extra_options
 ):
     """
-    Collect Pro-level Pub matches.
+    Collect pro-level pub matches.
     """
     extra_options.pop('stratz_token')
     db = Database(**extra_options)
@@ -182,30 +183,7 @@ async def pro_pubs(
             await sess.execute(stmt)
 
 
-@stratz_app.command(cls=RichCommand)
-@extra_options(database=True, rest=True)
-@_coro
-async def patch(
-    patch: str=O_(None, help='Specific patch to get data for.'),
-    **extra_options
-):
-    """
-    Collect Game Version data.
-    """
-    token = extra_options.pop('stratz_token')
-    db = Database(**extra_options)
-
-    with console.status('collecting data on patches..'):
-        async with Stratz(bearer_token=token) as api:
-            r = await api.patches()
-
-    with console.status('writing data to darskeer database..'):
-        async with db.session() as sess:
-            stmt = upsert(GameVersion).values([v.dict() for v in r])
-            await sess.execute(stmt)
-
-
-@stratz_app.command(cls=RichCommand)
+@app.command(cls=RichCommand)
 @extra_options(database=True, rest=True)
 @_coro
 async def tournament(
@@ -254,7 +232,7 @@ async def tournament(
                 await sess.execute(stmt)
 
 
-@stratz_app.command(cls=RichCommand)
+@app.command(cls=RichCommand)
 @extra_options(database=True, rest=True)
 @_coro
 async def match(
@@ -276,15 +254,13 @@ async def match(
     token = extra_options.pop('stratz_token')
     db = Database(**extra_options)
 
-    async with Stratz(bearer_token=token) as api:
-        s = 's' if len(match_id) > 1 else ''
-        ids = ','.join(map(str, match_id))
-        with console.status(f'collecting data on match id{s} {ids}..'):
+    with console.status(f'collecting data on {len(match_id)} matches..') as status:
+        async with Stratz(bearer_token=token) as api:
             r = await api.matches(match_ids=match_id)
             matches = [_ for _ in r if isinstance(_, schema.Match)]
             incomplete = [_ for _ in r if isinstance(_, schema.IncompleteMatch)]
 
-        with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
+            status.update(f'asking STRATZ to reparse {len(incomplete)} matches')
             await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
 
     with console.status('writing data to darskeer database..') as status:
@@ -297,179 +273,7 @@ async def match(
             await sess.execute(stmt)
 
 
-@stratz_app.command(cls=RichCommand)
-@extra_options(database=True, rest=True)
-@_coro
-async def hero(
-    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
-    since: bool=O_(False, '--since', help='Get data on all patches since.'),
-    hero_id: str=O_(None, help='Specific Hero to get data for.'),
-    **extra_options
-):
-    """
-    Collect Hero history data.
-    """
-    token = extra_options.pop('stratz_token')
-    db = Database(**extra_options)
-
-    async with db.session() as sess:
-        patches = await get_patches_since(sess=sess, patch=patch, since=since)
-
-    heroes = []
-    history = []
-
-    async with Stratz(bearer_token=token) as api:
-        with console.status('collecting data on patch..') as status:
-            for id_, patch in patches:
-                status.update(f'collecting data on patch.. {patch}')
-                r = await api.heroes(patch_id=id_)
-                history.extend(r)
-                heroes.extend([
-                    schema.to_hero()
-                    for schema in r
-                    if schema.hero_id not in [h.hero_id for h in heroes]
-                ])
-
-    with console.status('writing data to darskeer database..') as status:
-        async with db.session() as sess:
-            stmt = upsert(Hero).values([v.dict() for v in heroes])
-            await sess.execute(stmt)
-
-            for chunk in chunks(history, n=1000):
-                stmt = upsert(HeroHistory).values([v.dict() for v in chunk])
-                await sess.execute(stmt)
-
-
-@stratz_app.command(cls=RichCommand)
-@extra_options(database=True, rest=True)
-@_coro
-async def item(
-    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
-    since: bool=O_(False, '--since', help='Get data on all patches since.'),
-    item_id: str=O_(None, help='Specific Item to get data for.'),
-    **extra_options
-):
-    """
-    Collect Item history data.
-    """
-    token = extra_options.pop('stratz_token')
-    db = Database(**extra_options)
-
-    async with db.session() as sess:
-        patches = await get_patches_since(sess=sess, patch=patch, since=since)
-
-    items = []
-    history = []
-
-    async with Stratz(bearer_token=token) as api:
-        with console.status('collecting data on patch..') as status:
-            for id_, patch in patches:
-                status.update(f'collecting data on patch.. {patch}')
-                r = await api.items(patch_id=id_)
-                history.extend(r)
-                items.extend([
-                    schema.to_item()
-                    for schema in r
-                    if schema.item_id not in [i.item_id for i in items]
-                ])
-
-    with console.status('writing data to darskeer database..') as status:
-        async with db.session() as sess:
-            stmt = upsert(Item).values([v.dict() for v in items])
-            await sess.execute(stmt)
-
-            for chunk in chunks(history, n=2000):
-                stmt = upsert(ItemHistory).values([v.dict() for v in chunk])
-                await sess.execute(stmt)
-
-
-@stratz_app.command(cls=RichCommand)
-@extra_options(database=True, rest=True)
-@_coro
-async def npc(
-    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
-    since: bool=O_(False, '--since', help='Get data on all patches since.'),
-    npc_id: str=O_(None, help='Specific NPC to get data for.'),
-    **extra_options
-):
-    """
-    Collect NPC history data.
-    """
-    token = extra_options.pop('stratz_token')
-    db = Database(**extra_options)
-
-    async with db.session() as sess:
-        patches = await get_patches_since(sess=sess, patch=patch, since=since)
-
-    npcs = []
-    history = []
-
-    async with Stratz(bearer_token=token) as api:
-        with console.status('collecting data on patch..') as status:
-            for id_, patch in patches:
-                status.update(f'collecting data on patch.. {patch}')
-                r = await api.npcs(patch_id=id_)
-                history.extend(r)
-                npcs.extend([
-                    schema.to_npc()
-                    for schema in r
-                    if schema.npc_id not in [i.npc_id for i in npcs]
-                ])
-
-    with console.status('writing data to darskeer database..') as status:
-        async with db.session() as sess:
-            stmt = upsert(NPC).values([v.dict() for v in npcs])
-            await sess.execute(stmt)
-
-            for chunk in chunks(history, n=2000):
-                stmt = upsert(NPCHistory).values([v.dict() for v in chunk])
-                await sess.execute(stmt)
-
-
-@stratz_app.command(cls=RichCommand)
-@extra_options(database=True, rest=True)
-@_coro
-async def ability(
-    patch: str=O_(None, help='Game Version of the Hero to get data for.'),
-    since: bool=O_(False, '--since', help='Get data on all patches since.'),
-    ability_id: str=O_(None, help='Specific Ability to get data for.'),
-    **extra_options
-):
-    """
-    Collect Ability history data.
-    """
-    token = extra_options.pop('stratz_token')
-    db = Database(**extra_options)
-
-    async with db.session() as sess:
-        patches = await get_patches_since(sess=sess, patch=patch, since=since)
-
-    abilities = []
-    history = []
-
-    async with Stratz(bearer_token=token) as api:
-        with console.status('collecting data on patch..') as status:
-            for id_, patch in patches:
-                status.update(f'collecting data on patch.. {patch}')
-                r = await api.abilities(patch_id=id_)
-                history.extend(r)
-                abilities.extend([
-                    schema.to_ability()
-                    for schema in r
-                    if schema.ability_id not in [i.ability_id for i in abilities]
-                ])
-
-    with console.status('writing data to darskeer database..') as status:
-        async with db.session() as sess:
-            stmt = upsert(Ability).values([v.dict() for v in abilities])
-            await sess.execute(stmt)
-
-            for chunk in chunks(history, n=2000):
-                stmt = upsert(AbilityHistory).values([v.dict() for v in chunk])
-                await sess.execute(stmt)
-
-
-@stratz_app.command(cls=RichCommand)
+@app.command(cls=RichCommand)
 @extra_options(database=True, rest=True)
 @_coro
 async def setup_database(
@@ -565,11 +369,14 @@ async def setup_database(
 
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:
+            coros = []
+
             for name, records in data.items():
-                status.update(f'writing [yellow]{name}[/] data to darkseer database..')
                 model = records['model']
                 values = [v.dict() for v in records['data']]
 
                 for chunk in chunks(values, n=1000):
                     stmt = upsert(model).values(chunk)
-                    await sess.execute(stmt)
+                    coros.append(sess.execute(stmt))
+
+            await asyncio.gather(*coros)
