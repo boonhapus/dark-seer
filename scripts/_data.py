@@ -144,10 +144,10 @@ async def missing(
             stmt = sa.delete(StagingReparseMatch).filter(StagingReparseMatch.match_id.in_([v.match_id for v in matches]))
             await sess.execute(stmt)
 
-            status.update(f'writing {len(incomplete)} matches to the stage')
-            print(incomplete)
-            stmt = upsert(StagingReparseMatch).values([v.dict() for v in incomplete])
-            await sess.execute(stmt)
+            if incomplete:
+                status.update(f'writing {len(incomplete)} matches to the stage')
+                stmt = upsert(StagingReparseMatch).values([v.dict() for v in incomplete])
+                await sess.execute(stmt)
 
 
 @app.command(cls=RichCommand)
