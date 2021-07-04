@@ -101,6 +101,87 @@ async def write_matches(sess: AsyncSession, matches: List[schema.Match]):
         await sess.execute(stmt)
 
 
+@app.command(cls=RichCommand)
+@extra_options(database=True, rest=True)
+@_coro
+async def missing(
+    **extra_options
+):
+    """
+    Collect missing matches.
+    """
+    token = extra_options.pop('stratz_token')
+    db = Database(**extra_options)
+
+    with console.status('fetching missing matches from the darskeer database..') as status:
+        async with db.session() as sess:
+            stmt = sa.select(StagingReparseMatch.match_id)
+            r = await sess.execute(stmt)
+            match_ids = [match_id for match_id in r.scalars()]
+
+    match_ids = match_ids[:21]
+
+    async with Stratz(bearer_token=token) as api:
+        s = 's' if len(match_ids) > 1 else ''
+
+        with console.status(f'collecting data on {len(match_ids)} match id{s}..'):
+            gathered = await asyncio.gather(*[
+                api.matches(match_ids=chunk) for chunk in chunks(match_ids, n=10)
+            ])
+            r = [match for _ in gathered for match in _]
+            matches = [_ for _ in r if isinstance(_, schema.Match)]
+            incomplete = [_ for _ in r if isinstance(_, schema.IncompleteMatch)]
+
+        with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
+            await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
+
+    with console.status('writing data to darskeer database..') as status:
+        async with db.session() as sess:
+            status.update(f'writing {len(matches)} matches to the darkseer database')
+            await write_matches(sess, matches)
+
+            status.update(f'deleting {len(matches)} matches from the stage')
+            stmt = sa.delete(StagingReparseMatch).filter(StagingReparseMatch.match_id.in_([v.match_id for v in matches]))
+            await sess.execute(stmt)
+
+            status.update(f'writing {len(incomplete)} matches to the stage')
+            print(incomplete)
+            stmt = upsert(StagingReparseMatch).values([v.dict() for v in incomplete])
+            await sess.execute(stmt)
+
+
+@app.command(cls=RichCommand)
+@extra_options(database=True, rest=True)
+@_coro
+async def pro_pubs(
+    **extra_options
+):
+    """
+    Collect Pro-level Pub matches.
+    """
+    extra_options.pop('stratz_token')
+    db = Database(**extra_options)
+
+    # MMR > 7000, Ranked, All Draft
+    SQL = """
+        SELECT match_id, start_time
+          FROM public_matches
+         WHERE avg_mmr >= 7000 AND game_mode = 22 AND lobby_type = 7 AND start_time >= 1625097600
+         ORDER BY start_time DESC
+    """
+
+    with console.status('collecting data from OPENDOTA explorer..'):
+        async with OpenDota() as api:
+            r = await api.explorer(SQL)
+            matches = [{'match_id': row['match_id'], 'replay_salt': 0} for row in r]
+
+    with console.status('writing data to darskeer database..') as status:
+        async with db.session() as sess:
+            status.update(f'writing {len(matches)} matches to the stage')
+            stmt = upsert(StagingReparseMatch).values(matches)
+            await sess.execute(stmt)
+
+
 @stratz_app.command(cls=RichCommand)
 @extra_options(database=True, rest=True)
 @_coro
@@ -191,6 +272,7 @@ async def match(
         match_id = list(iter(match_id))
     except TypeError:
         match_id = [match_id]
+
     token = extra_options.pop('stratz_token')
     db = Database(**extra_options)
 
