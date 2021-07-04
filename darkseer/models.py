@@ -212,7 +212,7 @@ class AbilityHistory(Base):
 
 class StagingReparseMatch(Base):
     __tablename__ = 'staging_match_to_reparse'
-    match_id = Column(BigInteger, primary_key=True)
+    match_id = Column(BigInteger, primary_key=True, autoincrement=False)
     replay_salt = Column(BigInteger)
 
 

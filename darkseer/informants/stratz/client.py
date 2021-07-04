@@ -3,7 +3,7 @@ import logging
 import asyncio
 
 from pydantic import ValidationError
-from glom import glom, S, Val, Or, SKIP
+from glom import PathAccessError, glom, S, Val, Or, SKIP
 import httpx
 
 from darkseer.util import RateLimitedHTTPClient, FileCache, chunks
@@ -720,7 +720,7 @@ class Stratz(RateLimitedHTTPClient):
                 #
                 m['events'] = parse_events(match)
                 m = Match(**m)
-            except ValidationError:
+            except (ValidationError, PathAccessError):
                 log.exception(f'missing data on match {match["id"]}')
                 m = IncompleteMatch(match_id=match['id'], replay_salt=match['replaySalt'])
 
