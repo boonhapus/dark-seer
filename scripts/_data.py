@@ -3,7 +3,7 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from darkseer.informants.stratz import schema
-from darkseer.informants import Stratz
+from darkseer.informants import Stratz, OpenDota
 from darkseer.database import Database
 from darkseer.models import (
     GameVersion, Tournament, Account,
@@ -204,13 +204,6 @@ async def match(
 
         with console.status(f'asking STRATZ to reparse {len(incomplete)} matches'):
             await api.reparse(replay_salts=[i.replay_salt for i in incomplete])
-
-    # from rich import print
-    # import random
-
-    # print(matches)
-    # print(random.sample(matches[0].events, 15))
-    # raise SystemExit(-1)
 
     with console.status('writing data to darskeer database..') as status:
         async with db.session() as sess:

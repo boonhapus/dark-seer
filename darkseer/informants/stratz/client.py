@@ -51,8 +51,8 @@ class Stratz(RateLimitedHTTPClient):
             self.headers.update({'authorization': bearer_token})
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
-        if self.tokens < 500:
-            log.info(f'done with API work... there are {self.tokens} tokens left this hour')
+        if self.tokens < 150:
+            log.info(f'there are {self.tokens} tokens left this hour')
 
         return await super().__aexit__(exc_type, exc_value, traceback)
 
